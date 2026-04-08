@@ -1,0 +1,253 @@
+# ============================================================
+# Clang-Format 配置文件(Google C++ 风格)
+# 说明:
+#   - 基于 Google C++ Style Guide 规范编写, 贴合工业界主流实践
+#   - 支持 C++11/C++17/C++20 多版本适配, 兼容主流编译器
+#   - 所有缩进/空格/换行均严格遵循 Google 标准, 保证代码风格统一
+# ============================================================
+
+# 基础风格选择
+# 可选值: LLVM/Google/Chromium/Mozilla/WebKit/Microsoft
+# 作用: 指定格式化的基础预设风格, 后续配置会覆盖预设中的冲突项
+BasedOnStyle: Google
+
+# ------------------------------------------------------------
+# 语言版本与文件类型
+# ------------------------------------------------------------
+# 目标语言
+# 可选值: Cpp/C/ObjC/Java/JavaScript/TypeScript/Proto/CSharp 等
+# 作用: 明确格式化的目标语言, 避免多语言文件识别混淆
+Language: Cpp
+
+# 适配的 C++ 标准
+# 可选值: c++03/c++11/c++14/c++17/c++20/c++23
+# 作用: 根据指定的 C++ 标准调整格式化规则, 兼容对应版本语法特性
+Standard: c++17
+
+# ------------------------------------------------------------
+# 缩进与对齐
+# ------------------------------------------------------------
+# 基础缩进宽度
+# 可选值: 正整数(如 2/4/8)
+# 作用: 设置代码块缩进的字符数, 决定代码层级的视觉间隔
+IndentWidth: 4
+
+# Tab 键显示宽度
+# 可选值: 正整数, 需与 IndentWidth 保持一致
+# 作用: 仅控制 Tab 字符的显示效果, 不影响实际缩进逻辑(因 UseTab 设为 Never)
+TabWidth: 4
+
+# 是否使用 Tab 缩进
+# 可选值: Never/ForIndentation/ForContinuationAndIndentation/Always
+# 作用: 控制是否生成 Tab 字符, Never 表示全程用空格, 避免跨编辑器格式错乱
+UseTab: Never
+
+# 续行缩进宽度
+# 可选值: 正整数, 通常与 IndentWidth 一致或为其 2 倍
+# 作用: 设置代码换行后(如长函数参数/长表达式)的额外缩进宽度, 提升层级可读性
+ContinuationIndentWidth: 4
+
+# ------------------------------------------------------------
+# 大括号与控制结构格式
+# ------------------------------------------------------------
+# 大括号换行规则
+# 可选值: Attach/Allman/Linux/Mozilla/WebKit/Custom
+# 作用: 控制函数/类/控制语句(if/while/for/else 等)的大括号换行时机, 决定大括号与前导语句是否同行
+# 各选项详细说明:
+# 1. Attach: Google/LLVM 默认风格, 所有大括号与前导语句同行, 不单独换行, 代码紧凑节省行数
+# 2. Allman: 所有大括号均单独换行, 前导语句末尾不跟大括号, 层级清晰, 适合复杂结构
+# 3. Linux: Linux 内核 / GNU 风格, 控制语句大括号单独换行, 函数 / 类 / 命名空间大括号同行, 兼顾清晰与紧凑
+# 4. Mozilla: 火狐项目风格, 控制语句 / 函数 / 类大括号单独换行, 命名空间大括号同行, 平衡可读性与简洁性
+# 5. WebKit: 浏览器引擎风格(Safari/Chrome), 控制语句大括号同行, 函数 / 类 / 命名空间大括号单独换行
+# 6. Custom: 自定义风格, 需搭配 BraceWrapping 选项, 精细化配置每种语法结构的大括号换行规则(适合特殊需求)
+BreakBeforeBraces: Allman
+
+# 是否允许短代码块单行显示
+# 可选值: true/false/Empty
+# 作用: 控制仅有少量代码的块(如 if (cond) { return; })是否压缩到单行, false 强制换行
+AllowShortBlocksOnASingleLine: false
+
+# 是否允许短 if 语句单行显示
+# 可选值: true/false/OnlyIfEmpty/Never
+# 作用: 控制短 if 语句(含条件和执行体)是否写在单行, false 强制分行显示
+AllowShortIfStatementsOnASingleLine: false
+
+# 是否允许短函数单行显示
+# 可选值: true/false/InlineOnly/Empty
+# 作用: 控制短函数(如内联函数/空函数)是否压缩到单行, InlineOnly 仅允许内联函数单行
+AllowShortFunctionsOnASingleLine: InlineOnly
+
+# 是否允许短循环单行显示
+# 可选值: true/false/Empty
+# 作用: 控制短循环(如 for (int i=0; i<5; i++);)是否压缩到单行, false 强制分行
+AllowShortLoopsOnASingleLine: false
+
+# ------------------------------------------------------------
+# 行宽与换行规则
+# ------------------------------------------------------------
+# 每行最大字符数
+# 可选值: 正整数或 0(0 表示无限制)
+# 作用: 超过该长度的代码会自动换行, 120 为 Google 原生 80 字符的扩展, 适配宽屏
+ColumnLimit: 120
+
+# 注释换行惩罚权重
+# 可选值: 非负整数(数值越大惩罚越重)
+# 作用: 控制格式化时是否优先保持注释整行, 数值越高越避免拆分注释
+PenaltyBreakComment: 300
+
+# 字符串换行惩罚权重
+# 可选值: 非负整数(数值越大惩罚越重)
+# 作用: 控制格式化时是否优先保持字符串完整, 高数值避免拆分字符串(减少语法风险)
+PenaltyBreakString: 1000
+
+# 模板声明是否强制换行
+# 可选值: Yes/No/MultiLineOnly
+# 作用: 控制模板参数列表的换行逻辑, Yes 表示无论长度都强制换行, 提升可读性
+AlwaysBreakTemplateDeclarations: Yes
+
+# ------------------------------------------------------------
+# 空格规则
+# ------------------------------------------------------------
+# 尾随注释前的空格数
+# 可选值: 非负整数
+# 作用: 设置行尾 // 注释前的空格数量, 2 个空格为 Google 风格标准, 保证间距统一
+SpacesBeforeTrailingComments: 2
+
+# C 风格转换后是否加空格
+# 可选值: true/false
+# 作用: 控制(类型)转换后是否加空格, false 表示(int)x 而非(int)x(Google 风格)
+SpaceAfterCStyleCast: false
+
+# template 关键字后是否加空格
+# 可选值: true/false
+# 作用: 控制 template 与 < 之间的空格, true 表示 template <T> 而非 template<T>
+SpaceAfterTemplateKeyword: true
+
+# 赋值运算符前是否加空格
+# 可选值: true/false
+# 作用: 控制 =/+=/-= 等运算符前的空格, true 提升赋值操作的可读性
+SpaceBeforeAssignmentOperators: true
+
+# 括号前是否加空格
+# 可选值: Never/ControlStatements/Always
+# 作用: 控制括号前的空格逻辑, ControlStatements 表示仅控制语句(if/for/while)括号前加空格
+SpaceBeforeParens: ControlStatements
+
+# ------------------------------------------------------------
+# 指针与引用样式
+# ------------------------------------------------------------
+# 指针对齐方式
+# 可选值: Left/Right/Middle
+# 作用: 控制指针星号 * 的位置, Left 表示 int* ptr;(靠近类型, Google 风格)
+PointerAlignment: Left
+
+# 引用对齐方式
+# 可选值: Left/Right/Middle
+# 作用: 控制引用符号 & 的位置, 与指针对齐规则一致, Left 表示 int& ref;
+ReferenceAlignment: Left
+
+# ------------------------------------------------------------
+# 包含头文件的排序与分组
+# ------------------------------------------------------------
+# include 块分组规则
+# 可选值: Never/Preserve/Regroup
+# 作用: 控制 #include 语句的分组逻辑, Regroup 自动按系统/第三方/项目头文件分组
+IncludeBlocks: Regroup
+
+# 是否排序 include 语句
+# 可选值: true/false
+# 作用: 启用后按字母序自动排序 #include 语句, 避免头文件顺序混乱
+SortIncludes: true
+
+# include 分组配置(数组形式, 支持多组正则匹配)
+# 作用: 自定义 #include 分组优先级, Priority 数值越小排序越靠前
+IncludeCategories:
+  # ===== 1. 标准库头文件 =====
+  # 匹配 <iostream>, <vector>, <stdio.h> 等不含路径的标准库
+  - Regex: "^<[^/]+>$"
+    # - Regex: '^[<"][^/]+[>"]$'
+    Priority: 1
+    SortPriority: 0
+
+  # ===== 2. 第三方库头文件 =====
+  # 匹配 OpenCV、Eigen、gtest 等带路径的外部库
+  # - Regex: "^<.*/.*>$"
+  - Regex: "^[<].*/.*[>]$"
+    Priority: 2
+    SortPriority: 0
+
+  # ===== 3. 本地项目头文件 =====
+  # 匹配 "..." 格式的自定义头文件
+  - Regex: '^".*"$'
+    Priority: 3
+    SortPriority: 0
+
+# ------------------------------------------------------------
+# 命名空间与类定义
+# ------------------------------------------------------------
+# 命名空间内缩进规则
+# 可选值: None/Inner/All
+# 作用: 控制命名空间内部代码的缩进, None 表示不额外缩进(Google 风格)
+NamespaceIndentation: None
+
+# 自动添加命名空间闭合注释
+# 可选值: true/false
+# 作用: 启用后在命名空间结尾自动添加 // namespace xxx 注释, 规范代码收尾
+FixNamespaceComments: true
+
+# ------------------------------------------------------------
+# 注释与文档
+# ------------------------------------------------------------
+# 是否重排注释
+# 可选值: true/false
+# 作用: 启用后自动调整注释文字排版, 使其贴合 ColumnLimit 行宽限制
+ReflowComments: true
+
+# 忽略格式化的注释正则
+# 可选值: 正则字符串
+# 作用: 匹配到的注释不进行格式化, 此处忽略含 IWYU 头文件依赖检查的指令
+CommentPragmas: "^ IWYU pragma:"
+
+# ------------------------------------------------------------
+# 其他细节
+# ------------------------------------------------------------
+# 是否自动推导指针对齐
+# 可选值: true/false
+# 作用: 禁用后强制遵循手动设置的 PointerAlignment 规则, 避免自动推导冲突
+DerivePointerAlignment: false
+
+# 是否对齐连续赋值语句
+# 可选值: true/false/Consecutive
+# 作用: 控制连续赋值(a = b = c = 0;)是否对齐等号, false 保持自然格式(Google 风格)
+AlignConsecutiveAssignments: false
+
+# 是否对齐连续声明
+# 可选值: true/false/Consecutive
+# 作用: 控制连续变量声明(int a = 1; int bb = 2;)是否对齐变量名, false 保持自然格式
+AlignConsecutiveDeclarations: false
+
+# 是否对齐运算符两侧操作数
+# 可选值: true/false/DontAlignAfterOperator
+# 作用: 多行表达式时对齐二元运算符两侧操作数, 提升长表达式可读性
+AlignOperands: true
+
+# 开括号后是否对齐
+# 可选值: Align/DontAlign/AlwaysBreak/BlockIndent
+# 作用: 控制开括号((/[/<)后的数据对齐逻辑, Align 表示换行后对齐左括号
+AlignAfterOpenBracket: Align
+
+# ------------------------------------------------------------
+# 文件结尾与换行符
+# ------------------------------------------------------------
+# 是否使用 CRLF 换行符
+# 可选值: true/false
+# 作用: 控制换行符类型, false 强制使用 LF(\n), 统一跨平台格式
+UseCRLF: false
+
+# 文件末尾是否添加空换行
+# 可选值: true/false
+# 作用: 启用后自动在文件末尾添加一个空换行, 符合 POSIX 标准, 避免编译器警告
+InsertFinalNewline: true
+
+# 控制连续空行的最大保留数量, 设为2以支持头文件后空两行
+MaxEmptyLinesToKeep: 1
