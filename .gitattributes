@@ -1,0 +1,412 @@
+# 对所有文件默认启用自动换行符处理 (文本文件自动转换, 二进制文件不转换) 
+* text=auto eol=lf
+# 强制所有被识别为文本的文件, 在检出到本地工作目录时统一使用 LF 作为换行符 (不管当前是 Windows 还是其他系统) 
+
+# ==============================
+# 明确指定文本文件类型 (文本格式, 需换行符转换) 
+# ==============================
+
+# 代码/脚本类
+*.c text
+*.cpp text
+*.h text
+*.hpp text
+*.hxx text
+*.cc text
+*.cxx text
+# Objective-C
+*.m text
+# Objective-C++
+*.mm text
+# Java
+*.java text
+# Kotlin
+*.kt text
+# Scala
+*.scala text
+# C#
+*.cs text
+# Visual Basic
+*.vb text
+# Go
+*.go text
+# Rust
+*.rs text
+# Swift
+*.swift text
+# Dart
+*.dart text
+# JavaScript
+*.js text
+# ES Module JavaScript
+*.mjs text
+# CommonJS JavaScript
+*.cjs text
+# TypeScript
+*.ts text
+# TypeScript JSX
+*.tsx text
+# JavaScript JSX
+*.jsx text
+# PHP
+*.php text
+# Python
+*.py text
+# Ruby
+*.rb text
+# Perl
+*.perl text
+# Perl 脚本
+*.pl text
+# Lua
+*.lua text
+# R 语言
+*.r text
+# Julia
+*.jl text
+# Shell 脚本
+*.sh text
+# Bash 脚本
+*.bash text
+# Zsh 脚本
+*.zsh text
+# Windows 命令脚本
+*.cmd text
+# Windows 批处理
+*.bat text eol=crlf
+# PowerShell 脚本
+*.ps1 text
+# VBScript
+*.vbs text
+# 汇编语言
+*.asm text
+# 汇编语言
+*.s text
+# Lisp
+*.lisp text
+# Clojure
+*.clj text
+# Haskell
+*.hs text
+# OCaml
+*.ml text
+# Elixir
+*.ex text
+# Elm
+*.elm text
+# PureScript
+*.purs text
+# D 语言
+*.d text
+# Pascal
+*.pas text
+# 汇编
+*.asm text
+# 汇编
+*.s text
+
+# 标记/文档类
+# 纯文本
+*.txt text
+# Markdown
+*.md text
+# Markdown
+*.markdown text
+# reStructuredText
+*.rst text
+# AsciiDoc
+*.adoc text
+# LaTeX
+*.tex text
+# BibTeX
+*.bib text
+# Man 手册
+*.man text
+# Rich Text Format (文本优先) 
+*.rtf text
+# Perl POD
+*.pod text
+
+# 配置/数据类
+# JSON
+*.json text
+# JSON5
+*.json5 text
+# YAML
+*.yaml text
+# YAML 简写
+*.yml text
+# XML
+*.xml text
+# 逗号分隔数据
+*.csv text
+# 制表符分隔数据
+*.tsv text
+# 配置文件
+*.conf text
+# INI 配置
+*.ini text
+# note:配置文件
+# *.cfg text
+# 环境变量配置
+*.env text
+# Java 配置
+*.properties text
+# TOML
+*.toml text
+# EDN 格式
+*.edn text
+
+# 网页/样式类
+# HTML
+*.html text
+# HTML 简写
+*.htm text
+# CSS
+*.css text
+# Less
+*.less text
+# SCSS
+*.scss text
+# Sass
+*.sass text
+# Stylus
+*.styl text
+# Vue 组件
+*.vue text
+# Svelte 组件
+*.svelte text
+# Pug 模板
+*.pug text
+# Haml 模板
+*.haml text
+# EJS 模板
+*.ejs text
+# Handlebars 模板
+*.hbs text
+# Nunjucks 模板
+*.njk text
+# ASP.NET
+*.aspx text
+# JSP
+*.jsp text
+# JSPX
+*.jspx text
+
+# 其他文本类
+# 日志文件
+*.log text
+# 差异文件
+*.diff text
+# 补丁文件
+*.patch text
+# SQL 脚本
+*.sql text
+# Gradle 配置
+*.gradle text
+# Makefile 简写
+*.mk text
+# Makefile (大写) 
+Makefile text
+# Makefile (小写) 
+makefile text
+# 顶点着色器
+*.vert text
+# 片段着色器
+*.frag text
+# GLSL 着色器
+*.glsl text
+# SVG 矢量图 (XML 文本格式) 
+*.svg text
+
+# ==============================
+# 明确指定二进制文件类型 (不转换换行符) 
+# ==============================
+
+# 图片类
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.bmp binary
+*.tiff binary
+# TIFF 简写
+*.tif binary
+*.webp binary
+*.heic binary
+*.heif binary
+# 图标
+*.ico binary
+# Photoshop 文档
+*.psd binary
+# Illustrator 文档
+*.ai binary
+# InDesign 文档
+*.indd binary
+# CorelDRAW 文档
+*.cdr binary
+# CAD 图纸
+*.dwg binary
+# CAD 交换格式
+*.dxf binary
+
+# 视频类
+*.mp4 binary
+*.avi binary
+*.mov binary
+*.mkv binary
+*.flv binary
+*.wmv binary
+*.mpg binary
+*.mpeg binary
+*.m4v binary
+*.3gp binary
+*.webm binary
+
+# 音频类
+*.mp3 binary
+*.wav binary
+*.flac binary
+*.aac binary
+*.ogg binary
+*.wma binary
+*.m4a binary
+*.aiff binary
+*.ape binary
+
+# 压缩/归档类
+*.zip binary
+*.tar binary
+# Gzip
+*.gz binary
+# Bzip2
+*.bz2 binary
+*.7z binary
+*.rar binary
+*.xz binary
+*.z binary
+# Java 归档
+*.jar binary
+# Web 归档
+*.war binary
+# 企业级归档
+*.ear binary
+
+# 可执行/库类
+*.exe binary
+# Windows 动态库
+*.dll binary
+# Linux 共享库
+*.so binary
+# macOS 动态库
+*.dylib binary
+# 目标文件
+*.obj binary
+# 目标文件
+*.o binary
+# Java 字节码
+*.class binary
+# 静态库
+*.a binary
+# Windows 静态库
+*.lib binary
+
+# 文档/电子书类
+*.pdf binary
+# Word
+*.docx binary
+# Excel
+*.xlsx binary
+# PowerPoint
+*.pptx binary
+# 旧版 Word
+*.doc binary
+# 旧版 Excel
+*.xls binary
+# 旧版 PowerPoint
+*.ppt binary
+# OpenOffice 文本
+*.odt binary
+# OpenOffice 表格
+*.ods binary
+# OpenOffice 演示
+*.odp binary
+# 电子书
+*.epub binary
+# 电子书
+*.mobi binary
+# Kindle 电子书
+*.azw binary
+# Kindle 电子书
+*.azw3 binary
+
+# 数据库/镜像类
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+# Access 数据库
+*.mdb binary
+# Access 数据库
+*.accdb binary
+# 光盘镜像
+*.iso binary
+# 镜像文件
+*.img binary
+# macOS 镜像
+*.dmg binary
+# 虚拟机磁盘
+*.vmdk binary
+# 虚拟机磁盘
+*.vhd binary
+# QEMU 磁盘
+*.qcow2 binary
+
+# 字体类
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.fon binary
+
+# 安装包/插件类
+# Windows 安装包
+*.msi binary
+# Debian 包
+*.deb binary
+# RedHat 包
+*.rpm binary
+# macOS 安装包
+*.pkg binary
+# Chrome 扩展
+*.crx binary
+# Firefox 扩展
+*.xpi binary
+
+# 其他二进制类
+# 二进制数据
+*.bin binary
+# 数据文件
+*.dat binary
+# 备份文件
+*.bak binary
+# Flash
+*.swf binary
+# Flash 源文件
+*.fla binary
+# SolidWorks 零件
+*.sldprt binary
+# SolidWorks 装配
+*.sldasm binary
+# 3D 模型
+*.step binary
+# STEP 简写
+*.stp binary
+# 3D 模型
+*.fbx binary
+# Blender 文件
+*.blend binary
+# 3ds Max 文件
+*.max binary
+# Maya 二进制文件
+*.mb binary
