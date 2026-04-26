@@ -276,7 +276,7 @@ class ObjectBuffer
     }
 
     /***
-     * @description: 获取按分数降序排序后的原始索引列表
+     * @description: 获取按分数降序排序后的原始索引列表, 只获取实际目标个数的索引
      * @return
      */
     std::vector<uint32> get_sorted_indices() const
