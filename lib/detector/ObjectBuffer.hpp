@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cassert>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "types.hpp"
@@ -46,7 +47,7 @@ struct ObjectOffset
 class ObjectBuffer
 {
    private:
-    uint32 max_det_count = 0;  // 检测框的最大数量
+    uint32 max_obj_count = 0;  // 检测框的最大数量
     uint32 stride = 0;         // 检测框的步长
     uint32 extra_dim = 0;      // 检测框的额外维度, 例如 姿态估计 / 分割 / 旋转框 等
 
@@ -61,18 +62,18 @@ class ObjectBuffer
    public:
     /***
      * @description: 构造函数
-     * @param max_det_count uint32 : 检测框的最大数量
+     * @param max_obj_count uint32 : 检测框的最大数量
      * @param extra_dim uint32 : 额外维度
      * @return
      */
-    ObjectBuffer(uint32 max_det_count, uint32 extra_dim = 0) : max_det_count(max_det_count), extra_dim(extra_dim)
+    ObjectBuffer(uint32 max_obj_count, uint32 extra_dim = 0) : max_obj_count(max_obj_count), extra_dim(extra_dim)
     {
         // 计算每个检测目标信息的步长
         this->stride = ObjectOffset::base_box_len + extra_dim;
 
         // 初始化缓冲区
         // 计算总的元素数量
-        size_t total_elements = static_cast<size_t>(max_det_count * this->stride);
+        size_t total_elements = static_cast<size_t>(max_obj_count * this->stride);
 
         // reserve 预留空间, 防止内存重分配
         this->buffer.reserve(total_elements);
@@ -80,7 +81,7 @@ class ObjectBuffer
         this->buffer.resize(total_elements, 0.0f);
 
         // 预留空间防止 push_back 时的内存重分配, 但 size 初始为 0
-        this->valid_mask.reserve(static_cast<size_t>(this->max_det_count));
+        this->valid_mask.reserve(static_cast<size_t>(this->max_obj_count));
     }
 
     // 禁止各种复制拷贝, 只引用传递
@@ -113,7 +114,7 @@ class ObjectBuffer
      * @description: 获取最大检测目标个数
      * @return
      */
-    uint32 get_max_count() const { return this->max_det_count; }
+    uint32 get_max_count() const { return this->max_obj_count; }
 
     /***
      * @description: 获取检测目标的步长, 包括所有信息的长度: x y w h score cls_id [optional: pose / seg / obb]
@@ -231,7 +232,7 @@ class ObjectBuffer
      */
     void push_back(const float32* data)
     {
-        assert(this->valid_mask.size() < this->max_det_count && "Buffer overflow");
+        assert(this->valid_mask.size() < this->max_obj_count && "Buffer overflow");
 
         if (data != nullptr)
         {
@@ -366,7 +367,32 @@ class ObjectBuffer
         // 也可以将数据设置为零
         std::fill(this->buffer.begin(), this->buffer.end(), 0.0f);
     }
+
+    /***
+     * @description: 打印各种信息
+     * @return
+     */
+    std::string to_string() const
+    {
+        std::string info = format_string(
+            "max_obj_count: %d, obj_count: %d, stride: %d, buffer_size: %d, buffer_data*: %p, valid_mask_size: %d",
+            this->max_obj_count, this->get_obj_count(), this->stride, this->buffer.size(), this->buffer.data(),
+            this->valid_mask.size());
+
+        return info;
+    }
 };
+
+/***
+ * @description: 重载输出流运算符, 方便打印
+ * @return
+ */
+inline std::ostream& operator<<(std::ostream& os, const ObjectBuffer& obj)
+{
+    os << obj.to_string();
+    return os;
+}
+
 }  // namespace yolo
 
 #endif  // !__OBJECTBUFFER__H__
