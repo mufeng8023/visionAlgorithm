@@ -151,6 +151,7 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
 /***
  * @description: 非极大值抑制
  * @param outputs std::vector<ObjectBuffer>& : 后处理后的输出结果, 每个图片算一个 ObjectBuffer
+ * !本次设计是直接在每个 ObjectBuffer 上直接进行 nms 操作, 原地修改, 所以不能使用const
  * @param iou_thr float32 : IoU 阈值
  * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
  * @return
@@ -211,16 +212,16 @@ class BasePostProcess
     virtual ~BasePostProcess() = default;
 
     /***
-     * @description:
+     * @description: 后处理函数, 在当前函数中要实现对输出的特征图映射为具体的检测框和其他信息,
+     * 根据不同类别的置信度进行筛选,
+     * !不会进行nms
      * @param outputs std::vector<NetOutput> : BaseNet 的输出, 三组特征, 每个特征图shape为(b, na*no, h, w)
      * @param results std::vector<ObjectBuffer> : 最后的输出结果, 每个图片算一个vector
-     * @param conf_thr float32 :
-     * @param nms_thr float32 :
-     * @param max_det uint32 :
+     * @param conf_thrs vector<float32> : 每个类别的置信度阈值
      * @return
      */
     virtual bool run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer> results,
-                     const float32 conf_thr = 0.3, const float32 nms_thr = 0.45, const uint32 max_det = 300) = 0;
+                     const std::vector<float32> conf_thrs) = 0;
 };
 
 }  // namespace yolo
