@@ -46,6 +46,16 @@ struct ObjectOffset
  */
 class ObjectBuffer
 {
+    /***
+     * @description: 目标状态枚举
+     * @return
+     */
+    enum class ObjStatus : uint8
+    {
+        Invalid = 0,
+        Valid = 1
+    };
+
    private:
     uint32 max_obj_count = 0;  // 检测框的最大数量
     uint32 stride = 0;         // 检测框的步长
@@ -57,7 +67,7 @@ class ObjectBuffer
     // 有效性标记: 标记对应的 index 是否存有有效目标
     // 使用 uint8 而非 bool 是因为 vector<bool> 在 C++ 中有特殊的行为 (位优化)
     // 在某些并行计算或指针操作时 uint8 表现更符合预期。
-    std::vector<uint8> valid_mask;
+    std::vector<ObjStatus> valid_mask;
 
    public:
     /***
@@ -134,14 +144,8 @@ class ObjectBuffer
      */
     uint32 get_valid_count() const
     {
-        //
-        uint32 count = 0;
-        for (uint8 v : valid_mask)
-        {
-            if (v != 0)
-                count++;
-        }
-        return count;
+        // 统计个数
+        return std::count(valid_mask.begin(), valid_mask.end(), ObjStatus::Valid);
     }
 
     /***
@@ -155,7 +159,7 @@ class ObjectBuffer
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
 
         // 0 表示 无效, 1 表示 有效
-        return this->valid_mask[obj_idx] != 0;
+        return this->valid_mask[obj_idx] != ObjStatus::Invalid;
     }
 
     /***
@@ -170,7 +174,7 @@ class ObjectBuffer
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
 
         // 0 表示 无效, 1 表示 有效
-        this->valid_mask[obj_idx] = valid ? 1 : 0;
+        this->valid_mask[obj_idx] = valid ? ObjStatus::Valid : ObjStatus::Invalid;
     }
 
     /***
@@ -242,7 +246,7 @@ class ObjectBuffer
             std::copy(data, data + this->stride, this->buffer.begin() + (current_idx * this->stride));
 
             // 标记为有效
-            this->valid_mask.push_back(1);
+            this->valid_mask.push_back(ObjStatus::Valid);
         }
     }
 
@@ -262,12 +266,12 @@ class ObjectBuffer
             {
                 // 如果指定位置是末尾, 直接 push_back
                 // 如果是新位置, 需要补齐前面的 mask 确保 size 正确
-                this->valid_mask.push_back(1);
+                this->valid_mask.push_back(ObjStatus::Valid);
             }
             else
             {
                 // 在中间, 覆盖原来的元素
-                this->valid_mask[det_idx] = 1;
+                this->valid_mask[det_idx] = ObjStatus::Valid;
             }
 
             // 将数据复制到缓冲区
@@ -337,8 +341,8 @@ class ObjectBuffer
 
                 // 将 write_idx 标记为有效
                 this->set_valid(write_idx, true);
-                // 将 read_idx 标记为无效
-                this->set_valid(read_idx, false);  // 这一步是多余的, 因为 read_idx 已经被复制了, 并且不会被访问到
+                // 将 read_idx 标记为无效, 这一步是需要的, 如果没有最后 resize 时候可能会出错;
+                this->set_valid(read_idx, false);
 
                 // 两个指针移动
                 write_idx++;
@@ -350,9 +354,24 @@ class ObjectBuffer
                 write_idx++;
             }
         }  // while
+        // 退出的时候,
+        // 可能是 write_idx == read_idx, 指向的位置还没处理, 需要判断一下是否为有效数据
+        // 也可能是 write_idx > read_idx, 最后一次处理数据是w无效, r有效,
+        //          将r复制到了w, 此时返回, w是无效的, r是有效的,
+        // 所以最后需要判断一下 write_idx 指向的是否是有效的, 如果是, 需要保留, 否则删除
 
-        // 逻辑截断, 清空 write_idx 之后无效的元素
-        this->valid_mask.resize(write_idx);  // resize 仅更改 size() 不更改其内存大小
+        // resize 仅更改 size() 不更改其内存大小
+        // 需要判断一下最后指向的这个是否有效, 如果有效, 需要保留, 否则删除
+        if (this->is_valid(write_idx))
+        {
+            // 逻辑截断, 清空 write_idx 之后无效的元素
+            this->valid_mask.resize(write_idx + 1);
+        }
+        else
+        {
+            // 逻辑截断, 清空 write_idx 之后无效的元素
+            this->valid_mask.resize(write_idx);
+        }
     }
 
     /***
