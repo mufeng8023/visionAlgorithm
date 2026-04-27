@@ -26,7 +26,7 @@ typedef struct
     // 类别个数
     int32 nc = 0;
     // 反量化系数
-    std::array<float32, 3> scale_outputs = {1.0, 1.0, 1.0};
+    std::vector<float32> scale_outputs = {1.0, 1.0, 1.0};
 
     // 每个类别的置信度阈值
     std::vector<float32> conf_thrs = {0.1};
@@ -49,9 +49,9 @@ typedef struct
     int32 input_channels = 0;
 
     // 输出特征图的 strides
-    std::array<int32, 3> strides = {8, 16, 32};
+    std::vector<int32> strides = {8, 16, 32};
     // anchor 信息, 如果是空的表示是 anchor-free
-    std::vector<std::array<float32, 6>> anchors = {};
+    std::vector<std::vector<float32>> anchors = {};
 
 } DetectionNetConfig;
 
