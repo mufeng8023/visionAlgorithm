@@ -17,6 +17,7 @@
 
 #include <opencv2/opencv.hpp>
 
+#include "NetConfig.h"  // 模型配置
 #include "NetOutput.hpp"
 #include "common.hpp"  // 打印类别名称
 #include "types.hpp"   // 类型定义
@@ -49,7 +50,7 @@ class BaseNet
     std::string to_string() const
     {
         // 使用模板函数 get_class_name 获取类名
-        return get_class_name<BaseNet>(*this);
+        return get_class_name(*this);
     }
 };
 
