@@ -33,15 +33,16 @@ class BaseNet
      */
     ~BaseNet() = default;
 
-    /**
+    /***
      * @description: 推理的入口函数,
      * 输入是一个 batch 的 images[已经resize到模型输入大小的图片],
      * 输出一个 batch 的三张特征图
-     * @param {vector<cv::Mat>} &images 多张image
-     * @param {vector<NetOutput>} &outputs 第一层 vector 是三个 hw 的输出特征层; 第二层 vector 是 (b, c, h, w) 的数据
-     * @return {*}
+     * @param images_bgr std::vector<cv::Mat>& : 输入的图像数据
+     * @param outputs std::vector<NetOutput>& : 第一层 vector 是三个 hw 的输出特征层; 第二层 vector 是 (b, c, h, w)
+     * 的数据
+     * @return
      */
-    virtual bool run(const std::vector<cv::Mat>& images, std::vector<NetOutput>& outputs) = 0;
+    virtual bool run(const std::vector<cv::Mat>& images_bgr, std::vector<NetOutput>& outputs) = 0;
 
     /**
      * @description: 输出类别信息, 比如类别名称啥的
