@@ -36,22 +36,36 @@ typedef struct
     float32 iou_thrs = 0.45;
 
     // batch size
-    int32 batch_size = 1;
+    uint32 batch_size = 1;
 
     // 关键点个数
-    int32 kpt_count = 0;
+    uint32 kpt_count = 0;
     // 关键点维度
-    int32 kpt_dim = 0;
+    uint32 kpt_dim = 0;
+    // 关键点置信度阈值
+    float32 kpt_conf_thr = 0.5;
+    // 其他模型参数 obb / seg
 
     // 输入图片大小
-    int32 input_width = 0;
-    int32 input_height = 0;
-    int32 input_channels = 0;
+    uint32 input_width = 0;
+    uint32 input_height = 0;
+    uint32 input_channels = 0;
 
     // 输出特征图的 strides
-    std::vector<int32> strides = {8, 16, 32};
+    std::vector<uint32> strides = {8, 16, 32};
     // anchor 信息, 如果是空的表示是 anchor-free
     std::vector<std::vector<float32>> anchors = {};
+
+    // 需要后期计算的变量
+    // 每个位置anchor个数 anchors[0].size()
+    uint32 na = 0;
+    // 每个位置输出的信息数 no = 4 + 1 + nc + kpt_count * kpt_dim
+    uint32 no = 0;
+    // 输出层数 scale_outputs.size()
+    uint32 nl = 0;
+    // 每个输出特征图的宽高
+    std::vector<uint32> net_out_h = {};
+    std::vector<uint32> net_out_w = {};
 
 } DetectionNetConfig;
 
