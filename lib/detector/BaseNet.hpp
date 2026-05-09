@@ -48,7 +48,7 @@ class BaseNet
      * @description: 输出类别信息, 比如类别名称啥的
      * @return {*}
      */
-    std::string to_string() const
+    virtual std::string to_string() const
     {
         // 使用模板函数 get_class_name 获取类名
         return get_class_name(*this);
