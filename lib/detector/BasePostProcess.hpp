@@ -222,7 +222,27 @@ class BasePostProcess
      */
     virtual bool run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer> results,
                      const std::vector<float32> conf_thrs) = 0;
+
+    /**
+     * @description: 输出类别信息, 比如类别名称啥的
+     * @return {*}
+     */
+    std::string to_string() const
+    {
+        // 使用模板函数 get_class_name 获取类名
+        return get_class_name(*this);
+    }
 };
+
+/**
+ * @description: 重载
+ * @return {*}
+ */
+inline std::ostream& operator<<(std::ostream& os, const BasePostProcess& obj)
+{
+    std::cout << obj.to_string();
+    return os;
+}
 
 }  // namespace yolo
 #endif  // !__BASEPOSTPROCESS__H__
