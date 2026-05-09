@@ -180,6 +180,12 @@ class NetOutput
     uint32 get_width() const { return this->width; }
 
     /***
+     * @description: 获取缓冲区大小, 方便调试
+     * @return
+     */
+    uint32 get_buffer_size() const { return this->buffer.size(); }
+
+    /***
      * @description: 打印数据信息
      * @return
      */
