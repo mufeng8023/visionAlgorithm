@@ -21,6 +21,12 @@ typedef struct
 {
     // 模型名称
     std::string model_name = "";
+    // 模型类型: yolov5 / yolov8 / yolo11 / yolo26
+    std::string model_type = "yolov5";
+    // 模型任务: detection / classification / segmentation / pose / obb
+    std::string task = "detection";
+    // 是否使用置信度
+    bool has_conf = true;
     // 类别名字
     std::vector<std::string> names = {};
     // 类别个数
@@ -34,6 +40,8 @@ typedef struct
     float32 min_conf = 0.1;
     // iou 阈值
     float32 iou_thrs = 0.45;
+    // max_det 每个图片最多检测多少个目标
+    uint32 max_det = 300;
 
     // batch size
     uint32 batch_size = 1;
