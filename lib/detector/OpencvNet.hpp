@@ -80,6 +80,7 @@ class OpencvNet : public BaseNet
 
         for (int i = 0; i < this->nl; i++)
         {
+            // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
             this->output_len.push_back(this->batch_size * this->na * this->no * this->output_h[i] * this->output_w[i]);
         }
     }

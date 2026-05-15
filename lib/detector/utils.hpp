@@ -85,9 +85,42 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     // 输出层数量
     config.nl = config.strides.size();
     // 每个输出层的anchor数量
-    config.na = config.anchors.empty() ? 0 : config.anchors[0].size() / 2;
+    config.na = config.anchors.empty() ? 1 : config.anchors[0].size() / 2;
+    // 输出的信息数量
+    // anchor-base yolov5: 4 + [1 if has_conf else 0] + nc + kpt_count * kpt_dim
+    // anchor-free yolov8: 4 + nc + kpt_count * kpt_dim
+    if (config.task == "detection")
+    {
+        // anchor-base 只有 yolov5-face 才需要 conf
+        if (config.model_type == "yolov5" && config.has_conf)
+        {
+            config.no = 4 + 1 + config.nc;
+        }
+        else  // yolov8 / yolo11 / yolo26 不需要 conf
+        {
+            config.no = 4 + config.nc;
+        }
+    }
+    else if (config.task == "pose")
+    {
+        // anchor-base 只有 yolov5-face 才需要 conf
+        if (config.model_type == "yolov5" && config.has_conf)
+        {
+            config.no = 4 + 1 + config.nc + config.kpt_count * config.kpt_dim;
+        }
+        else  // yolov8 / yolo11 / yolo26 不需要 conf
+        {
+            config.no = 4 + config.nc + config.kpt_count * config.kpt_dim;
+        }
+    }
+    else
+    {
+        LOG_DEFAULT_ERROR("task:%s not support", config.task.c_str());
+        // 抛出异常, 退出程序
+        throw std::runtime_error("task not support");
+    }
 
-    // 根据类别名字, 将 conf_thres 进行扩充, 保证数量一致, 如果 conf_thres 个数小于类别个数, 则使用最后一个值进行填充
+    // 根据类别名字, 将 conf_thrs 进行扩充, 保证数量一致, 如果 conf_thrs 个数小于类别个数, 则使用最后一个值进行填充
     if (config.conf_thrs.size() < config.nc)
     {
         // 不修改原来的值, 新扩充的位置使用最后一个值进行填充

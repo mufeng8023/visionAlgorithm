@@ -65,9 +65,11 @@ typedef struct
     std::vector<std::vector<float32>> anchors = {};
 
     // 需要后期计算的变量
-    // 每个位置anchor个数 anchors[0].size()
+    // 每个位置anchor个数 anchors[0].size(), anchor-free默认为1;
     uint32 na = 0;
-    // 每个位置输出的信息数 no = 4 + 1 + nc + kpt_count * kpt_dim
+    // 每个位置输出的信息数 no
+    // anchor-free: 4 + nc + ...
+    // anchor-base: 4 + [1 if has_conf else 0] + nc + ...
     uint32 no = 0;
     // 输出层数 scale_outputs.size()
     uint32 nl = 0;
