@@ -34,12 +34,13 @@ include_directories(${CMAKE_SOURCE_DIR}
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_SOURCE_DIR}/lib/detector
     /usr/include/
 )
 
 # 添加多个特定的库文件搜索路径:link_directories(LIB_PATH1 LIB_PATH2 ...)
 # link_directories(LIB_PATH)
-link_directories(${OPENCV_ROOT}/lib)
+link_directories(${OPENCV_ROOT}/lib/detector/*.h*)
 
 # find_package(OpenVINO COMPONENTS Runtime)
 
@@ -67,7 +68,7 @@ link_directories(${OPENCV_ROOT}/lib)
 # 遍历获取src中所有cpp文件:file(GLOB My_Source_Files src/*.cpp)
 # file(GLOB My_Source_Files src/*.cpp)
 # add_executable(yolo main.cpp VALUE_NAME)
-file(GLOB CPP_Files src/*.cpp lib/detector/src/*.cpp)
+file(GLOB CPP_Files src/*.cpp lib/detector/*.cpp)
 add_executable(${PROJECT_NAME}
     ${CPP_Files}
 )
