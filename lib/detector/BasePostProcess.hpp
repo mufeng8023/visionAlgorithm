@@ -12,6 +12,7 @@
 #define __BASEPOSTPROCESS__H__
 
 #include <array>
+#include <cmath>
 #include <iostream>
 #include <string>
 #include <vector>
