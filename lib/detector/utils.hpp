@@ -61,6 +61,8 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     config.iou_thrs = static_cast<float32>(ini_parser.get_double("detection", "iou_thrs", 0.45));
     // 图片最多检测多少个目标
     config.max_det = static_cast<uint32>(ini_parser.get_int("detection", "max_det", 300));
+    // 是否进行类别区分, false: 不同类别之间不会进行nms
+    config.agnostic = ini_parser.get_bool("detection", "agnostic", false);
     // Batch size
     config.batch_size = static_cast<uint32>(ini_parser.get_int("detection", "batch_size", 1));
     // 关键点数量

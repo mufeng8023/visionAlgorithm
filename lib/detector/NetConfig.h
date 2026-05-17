@@ -42,6 +42,8 @@ typedef struct
     float32 iou_thrs = 0.45;
     // max_det 每个图片最多检测多少个目标
     uint32 max_det = 300;
+    // 是否进行类别区分, false: 不同类别之间不会进行nms
+    bool agnostic = false;
 
     // batch size
     uint32 batch_size = 1;
