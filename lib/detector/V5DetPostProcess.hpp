@@ -239,6 +239,10 @@ class V5DetPostProcess : public BasePostProcess
                         }
 
                         // 获取其余信息
+                        // 因为是直接将结果放到 result中, 提前扩容一个数据的位置, 方便通过索引直接访问
+                        result.expand_obj();
+                        result.set_valid(output_idx, true);
+
                         // x
                         value = output[no_addr + 0 * no_offset] * scale_output * 2.0;
                         result[output_idx][0] = (value + w - 0.5) * stride;

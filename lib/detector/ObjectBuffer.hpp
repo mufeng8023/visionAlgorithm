@@ -133,13 +133,13 @@ class ObjectBuffer
     uint32 get_stride() const { return this->stride; }
 
     /***
-     * @description: 获取检测目标个数
+     * @description: 获取检测目标个数, 有效 和 无效 都算
      * @return
      */
     inline uint32 get_obj_count() const { return static_cast<uint32>(this->valid_mask.size()); }
 
     /***
-     * @description: 获取有效目标的总数
+     * @description: 获取 有效 目标的总数
      * @return
      */
     uint32 get_valid_count() const
@@ -227,6 +227,19 @@ class ObjectBuffer
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
 
         return &(this->buffer[obj_idx * stride]);
+    }
+
+    /***
+     * @description: 扩容检测目标缓冲区
+     * @return
+     */
+    void expand_obj()
+    {
+        // 在末尾进行扩容;
+        assert(this->valid_mask.size() + 1 < this->max_obj_count && "Buffer overflow");
+
+        // 扩容 valid_mask
+        this->valid_mask.push_back(ObjStatus::Invalid);
     }
 
     /***
