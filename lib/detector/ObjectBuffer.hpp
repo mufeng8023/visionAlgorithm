@@ -108,16 +108,16 @@ class ObjectBuffer
     ObjectBuffer& operator=(const ObjectBuffer&) = delete;
 
     /***
-     * @description: 禁用移动构造函数, 防止对象被移动
+     * @description: 默认移动构造函数, 允许对象被移动
      * @return
      */
-    ObjectBuffer(const ObjectBuffer&&) = delete;
+    ObjectBuffer(ObjectBuffer&&) = default;
 
     /***
-     * @description: 禁用移动赋值操作符, 防止对象被移动赋值
+     * @description: 默认移动赋值操作符, 允许对象被移动赋值
      * @return
      */
-    ObjectBuffer& operator=(const ObjectBuffer&&) = delete;
+    ObjectBuffer& operator=(ObjectBuffer&&) = default;
 
     // 只读属性获取
     /***
