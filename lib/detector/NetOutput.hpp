@@ -77,14 +77,14 @@ class NetOutput
      * @description: 删除拷贝构造函数, 禁止使用移动构造函数
      * @return
      */
-    NetOutput(NetOutput&&) = delete;
+    NetOutput(NetOutput&&) = default;
 
     /***
      * @description: 禁用移动赋值运算符
      * 使用 = delete 显式删除该函数, 防止通过移动赋值来修改对象
      * @return
      */
-    NetOutput& operator=(NetOutput&&) = delete;
+    NetOutput& operator=(NetOutput&&) = default;
 
     /***
      * @description: 使用 float32* data 给 buffer 复制, 设置长度
