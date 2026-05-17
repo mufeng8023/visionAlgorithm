@@ -147,125 +147,124 @@ class V5DetPostProcess : public BasePostProcess
     {
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
-        for (uint32 batch_size_ = 0; batch_size_ < this->batch_size; ++batch_size_)
+        for (uint32 batch_idx = 0; batch_idx < this->batch_size; ++batch_idx)
         {
-            // 当前batch-size的首地址索引
-            uint batch_addr = batch_size_ * this->na * this->no * net_out_h * net_out_w;
+            // 当前batch的首地址索引
+            uint32 batch_addr = batch_idx * this->na * this->no * net_out_h * net_out_w;
 
             // 根据 batch 获取 result
-            ObjectBuffer& result = results[batch_size_];
+            ObjectBuffer& result = results[batch_idx];
 
             // 遍历每个特征图的位置 (na * no, h, w)
-            // 遍历na_
-            for (uint32 na_ = 0; na_ < this->na; ++na_)
+            // 遍历anchor索引
+            for (uint32 anchor_idx = 0; anchor_idx < this->na; ++anchor_idx)
             {
                 // 一个通道的元素个数 height * width
                 // 一组通道的元素总个数 no * height * width
                 // 第a组的首地址 a * no * height * width
                 // 这一组的首地址
-                uint32 group_addr = batch_addr + na_ * this->no * net_out_h * net_out_w;
+                uint32 group_addr = batch_addr + anchor_idx * this->no * net_out_h * net_out_w;
 
                 // 当前组的 anchor
-                uint32 anchor_w = anchors[na_ * 2];
-                uint32 anchor_h = anchors[na_ * 2 + 1];
+                uint32 anchor_w = anchors[anchor_idx * 2];
+                uint32 anchor_h = anchors[anchor_idx * 2 + 1];
 
-                // 遍历每个位置
-                for (uint32 h = 0; h < net_out_h; ++h)
+                // 遍历每个位置 (特征图网格)
+                for (uint32 grid_y = 0; grid_y < net_out_h; ++grid_y)
                 {
-                    for (uint32 w = 0; w < net_out_w; ++w)
+                    for (uint32 grid_x = 0; grid_x < net_out_w; ++grid_x)
                     {
-                        // 当前位置相对于 当前组的位置偏移
-                        uint32 offset_c = h * net_out_w + w;
+                        // 当前位置相对于当前组的偏移
+                        uint32 grid_offset = grid_y * net_out_w + grid_x;
 
-                        // 最大分数
-                        float32 max_score = -1.0;
-                        // 最大分数的索引, 也就是类别id
-                        float32 max_idx = 0.0;
-                        // 如果有has_conf 获取conf值
-                        float32 conf = 1.0;
+                        // 最大类别分数
+                        float32 max_class_score = -1.0f;
+                        // 最大分数对应的类别索引
+                        uint32 max_class_idx = 0;
+                        // 置信度 (box confidence)
+                        float32 box_conf = 1.0f;
 
-                        // 获取所有类别的最大分数
-                        uint32 cls_offset = 5;
+                        // 类别信息的起始偏移 (相对于x,y,w,h)
+                        uint32 class_offset = 5;
                         if (!this->has_conf)
                         {
-                            // 没有置信度
-                            cls_offset = 4;
+                            // 没有置信度通道时, 类别从第5个位置开始 (idx=4)
+                            class_offset = 4;
                         }
 
-                        // 获取当前输出个数
+                        // 获取当前已检测到的目标数量
                         uint32 output_idx = result.get_obj_count();
                         if (output_idx > this->max_det)
                         {
-                            // 如果超过最大检测数, 就直接返回
+                            // 超过最大检测数, 跳过
                             continue;
                         }
 
-                        // 遍历每个输出 x y w h conf nc
-                        // 当前组的首地址
-                        uint32 no_addr = group_addr + offset_c;
-                        uint32 no_offset = net_out_h * net_out_w;
+                        // 当前网格特征的首地址
+                        uint32 feature_addr = group_addr + grid_offset;
+                        // 通道间的偏移量 (用于在C维度上跳跃)
+                        uint32 channel_stride = net_out_h * net_out_w;
 
-                        // 如果有置信度, 获取置信度, 否则就默认为1
+                        // 获取box置信度 (如果有conf通道的话)
                         if (this->has_conf)
                         {
-                            conf = output[no_addr + 4 * no_offset] * scale_output;
+                            box_conf = output[feature_addr + 4 * channel_stride] * scale_output;
                         }
-                        // 如果置信度小于阈值, 就跳过
-                        if (conf < this->min_conf)
+                        // 置信度小于阈值, 跳过
+                        if (box_conf < this->min_conf)
                         {
-                            continue;  // 直接跳过当前组
+                            continue;
                         }
 
-                        // 获取类别和类别分数
-                        float32 value = 0.0;
-                        for (uint32 nc_ = 0; nc_ < this->nc; ++nc_)
+                        // 遍历所有类别, 找出最大分数和对应类别
+                        float32 class_score = 0.0f;
+                        for (uint32 class_idx = 0; class_idx < this->nc; ++class_idx)
                         {
-                            value = output[no_addr + (cls_offset + nc_) * no_offset] * scale_output;
-                            if (max_score < value)
+                            class_score = output[feature_addr + (class_offset + class_idx) * channel_stride] * scale_output;
+                            if (max_class_score < class_score)
                             {
-                                // 更新最大分数和索引
-                                max_score = value;
-                                max_idx = nc_;
+                                max_class_score = class_score;
+                                max_class_idx = class_idx;
                             }
                         }
-                        // 根据分数判断是否要保留
-                        // 当前是最后的预测分数
-                        conf *= max_score;
+                        // 最终置信度 = box_conf * max_class_score
+                        box_conf *= max_class_score;
 
-                        // 根据每个类的阈值进行过滤
-                        if (conf < this->conf_thrs[static_cast<uint32>(max_idx)])
+                        // 根据各类别的阈值进行过滤
+                        if (box_conf < this->conf_thrs[max_class_idx])
                         {
-                            continue;  // 跳过
+                            continue;
                         }
 
-                        // 获取其余信息
-                        // 因为是直接将结果放到 result中, 提前扩容一个数据的位置, 方便通过索引直接访问
+                        // 扩展result缓冲区, 并标记为有效
                         result.expand_obj();
                         result.set_valid(output_idx, true);
 
-                        // x
-                        value = output[no_addr + 0 * no_offset] * scale_output * 2.0;
-                        result[output_idx][0] = (value + w - 0.5) * stride;
-                        // y
-                        value = output[no_addr + 1 * no_offset] * scale_output * 2.0;
-                        result[output_idx][1] = (value + h - 0.5) * stride;
-                        // w
-                        value = output[no_addr + 2 * no_offset] * scale_output * 2.0;
-                        result[output_idx][2] = pow(value, 2.0) * anchor_w;
-                        // h
-                        value = output[no_addr + 3 * no_offset] * scale_output * 2.0;
-                        result[output_idx][3] = pow(value, 2.0) * anchor_h;
-                        // 添加置信度和类别索引
-                        result[output_idx][4] = conf;
-                        result[output_idx][5] = max_idx;
+                        // 解码边界框 (x, y, w, h)
+                        float32 decoded_val = 0.0f;
+                        // x坐标: (tx * 2 - 0.5 + cx) * stride
+                        decoded_val = output[feature_addr + 0 * channel_stride] * scale_output * 2.0f;
+                        result[output_idx][0] = (decoded_val + grid_x - 0.5f) * stride;
+                        // y坐标
+                        decoded_val = output[feature_addr + 1 * channel_stride] * scale_output * 2.0f;
+                        result[output_idx][1] = (decoded_val + grid_y - 0.5f) * stride;
+                        // w宽度: pw * (2 * tx)^2
+                        decoded_val = output[feature_addr + 2 * channel_stride] * scale_output * 2.0f;
+                        result[output_idx][2] = pow(decoded_val, 2.0f) * anchor_w;
+                        // h高度
+                        decoded_val = output[feature_addr + 3 * channel_stride] * scale_output * 2.0f;
+                        result[output_idx][3] = pow(decoded_val, 2.0f) * anchor_h;
+                        // 存储最终置信度和类别索引
+                        result[output_idx][4] = box_conf;
+                        result[output_idx][5] = static_cast<float32>(max_class_idx);
 
-                    }  // for w
+                    }  // for grid_x
 
-                }  // for h
+                }  // for grid_y
 
-            }  // for na
+            }  // for anchor_idx
 
-        }  // for batch-size
+        }  // for batch_idx
     }
 
     void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results)
