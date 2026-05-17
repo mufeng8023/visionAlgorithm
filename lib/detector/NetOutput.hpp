@@ -58,33 +58,74 @@ class NetOutput
         this->buffer.resize(total_elements, 0.0f);
     }
 
-    // 禁止各种复制拷贝, 只引用传递
     /***
-     * @description: 禁用拷贝构造函数, 防止对象被拷贝
-     * @return
+     * @description: 默认构造函数, 创建一个空的 NetOutput 对象
      */
-    NetOutput(const NetOutput&) = delete;
+    NetOutput() = default;
 
     /***
-     * @description: 禁用拷贝赋值运算符, 防止对象被拷贝赋值
-     * 这是通过使用 '= delete' 语法来明确禁止该操作
-     * NetOutput 类的拷贝赋值运算符被删除, 确保对象不会被意外拷贝
-     * @return
+     * @description: 拷贝构造函数, 禁用拷贝以避免大内存复制
+     *               如需复制, 请使用深拷贝或引用传递
+     * @param other const NetOutput& : 被拷贝的对象引用
      */
-    NetOutput& operator=(const NetOutput&) = delete;
+    NetOutput(const NetOutput& other) = delete;
 
     /***
-     * @description: 删除拷贝构造函数, 禁止使用移动构造函数
-     * @return
+     * @description: 拷贝赋值运算符, 禁用拷贝赋值以避免大内存复制
+     * @param other const NetOutput& : 被拷贝的对象引用
+     * @return NetOutput& : 返回引用以支持链式赋值
      */
-    NetOutput(NetOutput&&) = default;
+    NetOutput& operator=(const NetOutput& other) = delete;
 
     /***
-     * @description: 禁用移动赋值运算符
-     * 使用 = delete 显式删除该函数, 防止通过移动赋值来修改对象
-     * @return
+     * @description: 移动构造函数, 高效转移资源所有权
+     * @param other NetOutput&& : 被移动的右值引用
      */
-    NetOutput& operator=(NetOutput&&) = default;
+    NetOutput(NetOutput&& other) noexcept
+        : batch_size(other.batch_size),
+          channel(other.channel),
+          height(other.height),
+          width(other.width),
+          buffer(std::move(other.buffer))
+    {
+        // 移动完成后重置源对象的成员变量, 防止悬垂访问
+        other.batch_size = 0;
+        other.channel = 0;
+        other.height = 0;
+        other.width = 0;
+    }
+
+    /***
+     * @description: 移动赋值运算符, 高效转移资源所有权
+     * @param other NetOutput&& : 被移动的右值引用
+     * @return NetOutput& : 返回引用以支持链式赋值
+     */
+    NetOutput& operator=(NetOutput&& other) noexcept
+    {
+        // 检查自赋值, 避免不必要操作
+        if (this != &other)
+        {
+            // 转移所有权
+            batch_size = other.batch_size;
+            channel = other.channel;
+            height = other.height;
+            width = other.width;
+
+            buffer = std::move(other.buffer);
+
+            // 移动完成后重置源对象的成员变量
+            other.batch_size = 0;
+            other.channel = 0;
+            other.height = 0;
+            other.width = 0;
+        }
+        return *this;
+    }
+
+    /***
+     * @description: 析构函数, 默认实现
+     */
+    ~NetOutput() = default;
 
     /***
      * @description: 使用 float32* data 给 buffer 复制, 设置长度
