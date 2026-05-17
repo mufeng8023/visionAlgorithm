@@ -220,7 +220,8 @@ class V5DetPostProcess : public BasePostProcess
                         float32 class_score = 0.0f;
                         for (uint32 class_idx = 0; class_idx < this->nc; ++class_idx)
                         {
-                            class_score = output[feature_addr + (class_offset + class_idx) * channel_stride] * scale_output;
+                            class_score =
+                                output[feature_addr + (class_offset + class_idx) * channel_stride] * scale_output;
                             if (max_class_score < class_score)
                             {
                                 max_class_score = class_score;
@@ -267,7 +268,7 @@ class V5DetPostProcess : public BasePostProcess
         }  // for batch_idx
     }
 
-    void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results)
+    void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) override
     {
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (int i = 0; i < this->nl; ++i)

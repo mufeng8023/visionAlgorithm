@@ -163,7 +163,7 @@ class RunTime
         this->net->run(images_bgr, this->net_outputs);
 
         // 后处理
-        this->postProcess->run(this->net_outputs, this->results, this->config.conf_thrs);
+        this->postProcess->run(this->net_outputs, this->results);
 
         // 别的处理
 

@@ -218,11 +218,9 @@ class BasePostProcess
      * !不会进行nms
      * @param outputs std::vector<NetOutput> : BaseNet 的输出, 三组特征, 每个特征图shape为(b, na*no, h, w)
      * @param results std::vector<ObjectBuffer> : 最后的输出结果, 每个图片算一个vector
-     * @param conf_thrs vector<float32> : 每个类别的置信度阈值
      * @return
      */
-    virtual bool run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer> results,
-                     const std::vector<float32> conf_thrs) = 0;
+    virtual void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) = 0;
 
     /**
      * @description: 输出类别信息, 比如类别名称啥的
