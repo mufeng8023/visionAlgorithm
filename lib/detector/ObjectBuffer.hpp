@@ -73,7 +73,7 @@ class ObjectBuffer
     /***
      * @description: 构造函数
      * @param max_obj_count uint32 : 检测框的最大数量
-     * @param extra_dim uint32 : 额外维度
+     * @param extra_dim uint32 : 除了 边界框信息外, 额外维度
      * @return
      */
     ObjectBuffer(uint32 max_obj_count, uint32 extra_dim = 0) : max_obj_count(max_obj_count), extra_dim(extra_dim)

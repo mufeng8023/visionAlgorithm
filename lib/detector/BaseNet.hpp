@@ -24,6 +24,12 @@
 
 namespace yolo
 {
+typedef struct
+{
+    // onnx 模型路径
+    std::string onnx_path = "";
+} ModelPathParams;
+
 class BaseNet
 {
    public:
@@ -32,6 +38,14 @@ class BaseNet
      * @return {*}
      */
     ~BaseNet() = default;
+
+    /***
+     * @description: 加载模型
+     * @param param ModelPathParams& : 模型路径参数
+     * @param device int32 : GPU编号, CPU: -1
+     * @return
+     */
+    virtual bool load_model(const ModelPathParams& param, int32 device = -1) = 0;
 
     /***
      * @description: 推理的入口函数,

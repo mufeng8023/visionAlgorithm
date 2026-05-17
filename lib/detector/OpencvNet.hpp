@@ -122,21 +122,21 @@ class OpencvNet : public BaseNet
      * @param device int32 : 计算设备, -1 表示 CPU, 其他表示 GPU 设备编号
      * @return
      */
-    bool load_model(const std::string& onnx_path, int32 device = -1)
+    bool load_model(const ModelPathParams& param, int32 device = -1) override
     {
         try
         {
             // 加载网络
-            this->net = cv::dnn::readNetFromONNX(onnx_path);
+            this->net = cv::dnn::readNetFromONNX(param.onnx_path);
 
             // 检查神经网络模型是否为空
             if (this->net.empty())
             {
                 // 记录错误日志：模型加载失败, 包含模型信息和路径信息
                 LOG_DEFAULT_ERROR("%s: %s Load ONNX model failed, net is empty.", this->to_string().c_str(),
-                                  onnx_path.c_str());
+                                  param.onnx_path.c_str());
                 // 抛出运行时异常, 提示模型加载失败
-                throw std::runtime_error("Failed to load model from " + onnx_path);
+                throw std::runtime_error("Failed to load model from " + param.onnx_path);
             }
 
             // 配置计算设备
