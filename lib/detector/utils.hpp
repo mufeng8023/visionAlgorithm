@@ -31,8 +31,8 @@ namespace yolo
  */
 std::string to_lower(const std::string& str)
 {
-    std::string result = str;                            // 复制一份原字符串用于修改
-    std::transform(str.begin(), str.end(), str.begin(),  //
+    std::string result = str;                               // 复制一份原字符串用于修改
+    std::transform(str.begin(), str.end(), result.begin(),  //
                    [](unsigned char c) { return std::tolower(c); });
 
     return result;  // 返回修改后的新字符串
