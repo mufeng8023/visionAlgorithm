@@ -49,9 +49,9 @@ class OpencvNet : public BaseNet
     // 输出特征图的宽高
     uint32 nl = 0;
     // 每个特征图的宽高
-    std::vector<uint32> output_h = {};
+    std::vector<uint32> net_out_h = {};
     std::vector<uint32> output_w = {};
-    // 输出的每个特征图的数据个数, batch_size * na * no * output_h[i] * output_w[i]
+    // 输出的每个特征图的数据个数, batch_size * na * no * net_out_h[i] * output_w[i]
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
 
     // 输入的 batch 数据, 大小为 (batch_size, input_channels, input_height, input_width)
@@ -75,13 +75,13 @@ class OpencvNet : public BaseNet
         this->na = config.na;
         this->no = config.no;
         this->nl = config.nl;
-        this->output_h = config.net_out_h;
+        this->net_out_h = config.net_out_h;
         this->output_w = config.net_out_w;
 
         for (int i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
-            this->output_len.push_back(this->batch_size * this->na * this->no * this->output_h[i] * this->output_w[i]);
+            this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] * this->output_w[i]);
         }
     }
 
@@ -289,7 +289,7 @@ class OpencvNet : public BaseNet
                 // 保证 (batch_size, channel, height, width) 数量是正确的
                 if (net_outputs[i].size[0] != this->batch_size        // batch size
                     || net_outputs[i].size[1] != this->na * this->no  // channel
-                    || net_outputs[i].size[2] != this->output_h[i]    // height
+                    || net_outputs[i].size[2] != this->net_out_h[i]   // height
                     || net_outputs[i].size[3] != this->output_w[i]    // width
                 )
                 {
@@ -303,7 +303,7 @@ class OpencvNet : public BaseNet
                         net_outputs[i].size[3],        // 输出的Mat width
                         this->batch_size,              // batch size
                         this->na * this->no,           // channel
-                        this->output_h[i],             // height
+                        this->net_out_h[i],            // height
                         this->output_w[i]              // width
                     );
 
@@ -315,7 +315,7 @@ class OpencvNet : public BaseNet
                 LOG_DEFAULT_DEBUG("out%d: [%d, %d, %d, %d], len=%d", i,  // 索引
                                   this->batch_size,                      // batch size
                                   this->na * this->no,                   // channel
-                                  this->output_h[i],                     // height
+                                  this->net_out_h[i],                    // height
                                   this->output_w[i],                     // width
                                   this->output_len[i]                    // 输出数据个数
                 );
@@ -328,7 +328,7 @@ class OpencvNet : public BaseNet
 
                     outputs.emplace_back(NetOutput(this->batch_size,     // batch size
                                                    this->na * this->no,  // channel
-                                                   this->output_h[i],    // height
+                                                   this->net_out_h[i],   // height
                                                    this->output_w[i]     // width
                                                    ));
 
@@ -370,7 +370,7 @@ class OpencvNet : public BaseNet
                                           this->to_string().c_str(), i);
                         return false;
                     }
-                }  // outputs 不为空, 直接对应为止复制结果
+                }  // outputs 不为空, 直接对应位置复制结果
             }  // for 获取输出结果循环结束
 
             return true;
