@@ -94,30 +94,72 @@ class ObjectBuffer
         this->valid_mask.reserve(static_cast<size_t>(this->max_obj_count));
     }
 
-    // 禁止各种复制拷贝, 只引用传递
     /***
-     * @description: 禁用拷贝构造函数, 防止对象被拷贝
-     * @return
+     * @description: 默认构造函数, 创建一个空的 ObjectBuffer 对象
      */
-    ObjectBuffer(const ObjectBuffer&) = delete;
+    ObjectBuffer() = default;
 
     /***
-     * @description: 禁用赋值操作符, 防止对象被赋值
-     * @return
+     * @description: 拷贝构造函数, 禁用拷贝以避免大内存复制
+     *               如需复制, 请使用深拷贝或引用传递
+     * @param other const ObjectBuffer& : 被拷贝的对象引用
      */
-    ObjectBuffer& operator=(const ObjectBuffer&) = delete;
+    ObjectBuffer(const ObjectBuffer& other) = delete;
 
     /***
-     * @description: 默认移动构造函数, 允许对象被移动
-     * @return
+     * @description: 拷贝赋值运算符, 禁用拷贝赋值以避免大内存复制
+     * @param other const ObjectBuffer& : 被拷贝的对象引用
+     * @return ObjectBuffer& : 返回引用以支持链式赋值
      */
-    ObjectBuffer(ObjectBuffer&&) = default;
+    ObjectBuffer& operator=(const ObjectBuffer& other) = delete;
 
     /***
-     * @description: 默认移动赋值操作符, 允许对象被移动赋值
-     * @return
+     * @description: 移动构造函数, 高效转移资源所有权
+     * @param other ObjectBuffer&& : 被移动的右值引用
      */
-    ObjectBuffer& operator=(ObjectBuffer&&) = default;
+    ObjectBuffer(ObjectBuffer&& other) noexcept
+        : max_obj_count(other.max_obj_count),
+          stride(other.stride),
+          extra_dim(other.extra_dim),
+          buffer(std::move(other.buffer)),
+          valid_mask(std::move(other.valid_mask))
+    {
+        // 移动完成后重置源对象的成员变量, 防止悬垂访问
+        other.max_obj_count = 0;
+        other.stride = 0;
+        other.extra_dim = 0;
+    }
+
+    /***
+     * @description: 移动赋值运算符, 高效转移资源所有权
+     * @param other ObjectBuffer&& : 被移动的右值引用
+     * @return ObjectBuffer& : 返回引用以支持链式赋值
+     */
+    ObjectBuffer& operator=(ObjectBuffer&& other) noexcept
+    {
+        // 检查自赋值, 避免不必要操作
+        if (this != &other)
+        {
+            // 转移所有权
+            max_obj_count = other.max_obj_count;
+            stride = other.stride;
+            extra_dim = other.extra_dim;
+
+            buffer = std::move(other.buffer);
+            valid_mask = std::move(other.valid_mask);
+
+            // 移动完成后重置源对象的成员变量
+            other.max_obj_count = 0;
+            other.stride = 0;
+            other.extra_dim = 0;
+        }
+        return *this;
+    }
+
+    /***
+     * @description: 析构函数, 默认实现
+     */
+    ~ObjectBuffer() = default;
 
     // 只读属性获取
     /***
