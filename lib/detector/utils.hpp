@@ -11,6 +11,8 @@
 #ifndef __UTILS__H__
 #define __UTILS__H__
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
 
@@ -19,9 +21,22 @@
 #include "NetConfig.h"
 #include "ini_parser.hpp"
 #include "logging.hpp"
-
 namespace yolo
 {
+
+/***
+ * @description: 将字符串转为小写
+ * @param str string& : 需要转换的字符串
+ * @return
+ */
+std::string to_lower(const std::string& str)
+{
+    std::string result = str;                            // 复制一份原字符串用于修改
+    std::transform(str.begin(), str.end(), str.begin(),  //
+                   [](unsigned char c) { return std::tolower(c); });
+
+    return result;  // 返回修改后的新字符串
+}
 
 /***
  * @description:
@@ -44,11 +59,11 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     }
 
     // 模型名字
-    config.model_name = ini_parser.get_string("detection", "model_name", "UNKNOW");
+    config.model_name = to_lower(ini_parser.get_string("detection", "model_name", "unknow"));
     // 模型类型, 根据名字选择后处理方式
-    config.model_type = ini_parser.get_string("detection", "model_type", "UNKNOW");
+    config.model_type = to_lower(ini_parser.get_string("detection", "model_type", "unknow"));
     // 任务类型, 根据名字选择后处理方式
-    config.task = ini_parser.get_string("detection", "task", "UNKNOW");
+    config.task = to_lower(ini_parser.get_string("detection", "task", "unknow"));
     // 输出中是否包括置信度, yolov5-face 和 yolov8 / yolo11 / yolo26 是没有的, 为false;
     config.has_conf = ini_parser.get_bool("detection", "has_conf", false);
     // 类别名字
