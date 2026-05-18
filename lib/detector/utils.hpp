@@ -13,6 +13,8 @@
 
 #include <algorithm>
 #include <cctype>
+#include <iostream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -21,8 +23,61 @@
 #include "NetConfig.h"
 #include "ini_parser.hpp"
 #include "logging.hpp"
+
 namespace yolo
 {
+
+/***
+ * @description: 将 vector<T> 转换为单条 string 的函数
+ * @param vec std::vector<T>& : 输入的一维 vector
+ * @param delimiter string& : 分隔符，默认是逗号 ","
+ * @return std::string
+ */
+template <typename T>
+std::string vector_to_string(const std::vector<T>& vec, const std::string& delimiter = ",")
+{
+    std::ostringstream oss;
+
+    for (size_t i = 0; i < vec.size(); ++i)
+    {
+        oss << vec[i];
+        if (i != vec.size() - 1 && !delimiter.empty())
+        {
+            oss << delimiter;
+        }
+    }
+
+    return oss.str();
+}
+
+/***
+ * @description: 将 vector<vector<T>> 转换为单条 string 的函数
+ * 直接复用 vector_to_string 来处理每一行
+ * @param table std::vector<std::vector<T>>& : 输入的二维 vector
+ * @return std::string
+ */
+template <typename T>
+std::string table_to_string(const std::vector<std::vector<T>>& table)
+{
+    if (table.empty())
+        return "";
+
+    std::ostringstream oss;
+
+    for (size_t i = 0; i < table.size(); ++i)
+    {
+        // 直接调用 vector_to_string 处理当前行，元素间默认用逗号分隔
+        oss << vector_to_string(table[i]);
+
+        // 如果不是最后一行，在行与行之间加上分号 ";"
+        if (i != table.size() - 1)
+        {
+            oss << ";";
+        }
+    }
+
+    return oss.str();
+}
 
 /***
  * @description: 将字符串转为小写
@@ -60,41 +115,71 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
 
     // 模型名字
     config.model_name = to_lower(ini_parser.get_string("detection", "model_name", "unknow"));
+    LOG_DEFAULT_INFO("model_name:%s", config.model_name.c_str());
+
     // 模型类型, 根据名字选择后处理方式
     config.model_type = to_lower(ini_parser.get_string("detection", "model_type", "unknow"));
+    LOG_DEFAULT_INFO("model_type:%s", config.model_type.c_str());
+
     // 任务类型, 根据名字选择后处理方式
     config.task = to_lower(ini_parser.get_string("detection", "task", "unknow"));
+    LOG_DEFAULT_INFO("task:%s", config.task.c_str());
+
     // 输出中是否包括置信度, yolov5-face 和 yolov8 / yolo11 / yolo26 是没有的, 为false;
     config.has_conf = ini_parser.get_bool("detection", "has_conf", false);
+    LOG_DEFAULT_INFO("has_conf:%d", config.has_conf);
+
     // 类别名字
     config.names = ini_parser.get_array1d<std::string>("detection", "names");
+    LOG_DEFAULT_INFO("names:%s", vector_to_string(config.names).c_str());
+
     // 是否是量化后的模型
     config.scale_outputs = ini_parser.get_array1d<float32>("detection", "scale_outputs");
+    LOG_DEFAULT_INFO("scale_outputs:%s", vector_to_string(config.scale_outputs).c_str());
+
     // 置信度阈值, 每个类别有一个
     config.conf_thrs = ini_parser.get_array1d<float32>("detection", "conf_thrs", {0.3});
+    LOG_DEFAULT_INFO("conf_thrs:%s", vector_to_string(config.conf_thrs).c_str());
+
     // nms iou 阈值
     config.iou_thrs = static_cast<float32>(ini_parser.get_double("detection", "iou_thrs", 0.45));
+    LOG_DEFAULT_INFO("iou_thrs:%f", config.iou_thrs);
+
     // 图片最多检测多少个目标
     config.max_det = static_cast<uint32>(ini_parser.get_int("detection", "max_det", 300));
+    LOG_DEFAULT_INFO("max_det:%d", config.max_det);
+
     // 是否进行类别区分, false: 不同类别之间不会进行nms
     config.agnostic = ini_parser.get_bool("detection", "agnostic", false);
+    LOG_DEFAULT_INFO("agnostic:%d", config.agnostic);
+
     // Batch size
     config.batch_size = static_cast<uint32>(ini_parser.get_int("detection", "batch_size", 1));
+    LOG_DEFAULT_INFO("batch_size:%d", config.batch_size);
+
     // 关键点数量
     config.kpt_count = static_cast<uint32>(ini_parser.get_int("detection", "kpt_count", 0));
+    LOG_DEFAULT_INFO("kpt_count:%d", config.kpt_count);
+
     // 关键点维度
     config.kpt_dim = static_cast<uint32>(ini_parser.get_int("detection", "kpt_dim", 0));
+    LOG_DEFAULT_INFO("kpt_dim:%d", config.kpt_dim);
 
     // 输入图片的通道数, 高度, 宽度
     std::vector<uint32> input_chw = ini_parser.get_array1d<uint32>("detection", "input_chw");
+    LOG_DEFAULT_INFO("input_chw:%s", vector_to_string(input_chw).c_str());
+
     config.input_channels = input_chw[0];
     config.input_height = input_chw[1];
     config.input_width = input_chw[2];
 
     // 每个输出层的步长
     config.strides = ini_parser.get_array1d<uint32>("detection", "strides");
+    LOG_DEFAULT_INFO("strides:%s", vector_to_string(config.strides).c_str());
+
     // 每个输出层的anchor, anchors 的个数为0, 说明是anchor free的模型
     config.anchors = ini_parser.get_array2d<float32>("detection", "anchors");
+    LOG_DEFAULT_INFO("anchors:%s", table_to_string(config.anchors).c_str());
 
     // 需要计算的一些步骤和参数
     // 类别数量
