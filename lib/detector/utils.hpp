@@ -23,6 +23,7 @@
 #include "NetConfig.h"
 #include "ini_parser.hpp"
 #include "logging.hpp"
+#include "types.hpp"
 
 namespace yolo
 {
@@ -72,7 +73,7 @@ std::string table_to_string(const std::vector<std::vector<T>>& table)
         // 如果不是最后一行，在行与行之间加上分号 ";"
         if (i != table.size() - 1)
         {
-            oss << ";";
+            oss << "; ";
         }
     }
 
@@ -248,6 +249,145 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     }
 
     LOG_DEFAULT_INFO("load ini_path:%s", ini_path.c_str());
+}
+
+/**
+ * @description: 根据类别索引获取一个颜色
+ * @param {int32} index 根据类别索引获取一个颜色
+ * @param {bool} is_rgb 返回颜色的类型
+ * @return {*}
+ */
+std::tuple<uint8, uint8, uint8> getColor(int32 index, bool is_rgb)
+{
+    // 定义一个 lambda 函数，用于根据 HSL 转换为 RGB
+    // p 和 q 是计算 RGB 时的中间值，t 是色相值，计算公式源自 HSL 到 RGB 的转换公式
+    auto hue_to_rgb = [](float32 p, float32 q, float32 t)
+    {
+        // 将 t 限制在 0 到 1 之间，避免负值
+        t = fmod(t, 1.0f);  // fmod 是求浮点数的余数
+        if (t < 0)
+            t += 1.0f;  // 若 t 为负，则调整 t 为正值
+
+        // 根据 t 的不同范围，使用不同的公式计算 RGB 的某个分量
+        if (t < 1.0f / 6)
+            return p + (q - p) * 6 * t;  // 第一个色相区间，线性插值
+        if (t < 1.0f / 2)
+            return q;  // 第二个色相区间，保持 q 值
+        if (t < 2.0f / 3)
+            return p + (q - p) * (2.0f / 3 - t) * 6;  // 第三个色相区间，线性插值
+        return p;                                     // 第四个色相区间，返回 p 值
+    };
+
+    // 计算色相（h），通过 index 计算一个 0 到 1 之间的浮动值
+    // 137.508 是一个系数，用于控制色相的变化
+    // fmod 用于确保结果在 360 以内，然后除以 360 转换到 [0, 1] 范围
+    float32 h = fmod(index * 137.508f, 360.0f) / 360.0f;
+
+    // 设置亮度和饱和度，亮度在 [0, 1] 之间，饱和度也是
+    float32 l = 0.6f, s = 0.95f;
+    float32 r, g, b;
+
+    // 如果饱和度为 0，表示是灰色
+    if (s == 0)
+    {
+        r = g = b = l;  // 将 r, g, b 都设置为亮度值
+    }
+    else
+    {
+        // 计算 q 和 p 的值，它们是根据 HSL 转 RGB 的转换公式得出的中间值
+        // q 和 p 的计算方式不同，取决于亮度 l 的大小
+        float32 q = (l < 0.5f) ? (l * (1 + s)) : (l + s - l * s);
+        float32 p = 2 * l - q;
+
+        // 使用 hue_to_rgb 函数来计算 RGB 各分量的值
+        // h + 1/3 用于计算红色分量，h 用于计算绿色分量，h - 1/3 用于计算蓝色分量
+        r = hue_to_rgb(p, q, h + 1.0f / 3);  // 红色分量
+        g = hue_to_rgb(p, q, h);             // 绿色分量
+        b = hue_to_rgb(p, q, h - 1.0f / 3);  // 蓝色分量
+    }
+
+    // 将 RGB 分量的浮点值限制在 0 到 1 范围内，并转换为 0 到 255 的整数范围
+    // 使用 static_cast<uint8> 将浮点数转换为无符号 8 位整数类型
+    b = static_cast<uint8>(std::max(0.0f, std::min(b, 1.0f)) * 255);  // 返回蓝色分量
+    g = static_cast<uint8>(std::max(0.0f, std::min(g, 1.0f)) * 255);  // 返回绿色分量
+    r = static_cast<uint8>(std::max(0.0f, std::min(r, 1.0f)) * 255);  // 返回红色分量
+
+    if (is_rgb)
+    {
+        return std::make_tuple(r, g, b);
+    }
+    else
+    {
+        return std::make_tuple(b, g, r);
+    }
+}
+
+/***
+ * @description:
+ * @param image Mat& : 输入图像
+ * @param target_height int32 : 目标高度
+ * @param target_width int32 : 目标宽度
+ * @param padded_img Mat& : 处理后的图像
+ * @return ratio: resize比例; dw: 左右对称的填充; dh: 上下对称的填充
+ * 使用方法, 输出得到的检测结果, 采用如下方式进行还原
+ * x = (x - dw) / ratio
+ * y = (y - dh) / ratio
+ * w = w * ratio
+ * h = h * ratio
+ */
+std::tuple<float32, int32, int32> pre_process_resize_img(const cv::Mat& image,       //
+                                                         const int32 target_height,  //
+                                                         const int32 target_width,   //
+                                                         cv::Mat& padded_img)
+{
+    // 获取原始图像的宽度和高度
+    int32 height = image.rows;
+    int32 width = image.cols;
+
+    // 如果输入图片大小刚好和一致，就
+    if (height == target_height and width == target_width)
+    {
+        padded_img = image.clone();
+
+        return std::make_tuple(1.0, 0, 0);
+    }
+
+    // 计算宽度和高度的缩放比例
+    float32 ratio = std::min(static_cast<float32>(target_width) / width,  //
+                             static_cast<float32>(target_height) / height);
+
+    // 计算缩放后的宽度和高度
+    int32 new_width = static_cast<int32>(width * ratio);
+    if (new_width > target_width)
+    {
+        new_width = target_width;
+    }
+    int32 new_height = static_cast<int32>(height * ratio);
+    if (new_height > target_height)
+    {
+        new_height = target_height;
+    }
+
+    // 等比例缩放图像
+    cv::Mat resized_img;
+    cv::resize(image, resized_img, cv::Size(new_width, new_height));
+
+    // 计算需要填充的宽度和高度
+    int32 dw = (target_width - new_width) / 2;
+    if (dw < 0)
+    {
+        dw = 0;
+    }
+    int32 dh = (target_height - new_height) / 2;
+    if (dh < 0)
+    {
+        dh = 0;
+    }
+
+    // 将缩放后的图像放置在中心位置
+    resized_img.copyTo(padded_img(cv::Rect(dw, dh, new_width, new_height)));
+
+    return std::make_tuple(ratio, dw, dh);
 }
 
 }  // namespace yolo
