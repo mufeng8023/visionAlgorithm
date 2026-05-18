@@ -79,11 +79,41 @@ class IniParser
 
             try  // 使用 try-catch 块处理可能的转换异常
             {
-                // 如果模板参数 T 是 int 类型
-                if constexpr (std::is_same_v<T, int>)
+                // 如果模板参数 T 是 int32 类型
+                if constexpr (std::is_same_v<T, int32>)
                 {
-                    // 将字符串转换为 int 并添加到 vector
-                    result.push_back(std::stoi(match_str));
+                    // 将字符串转换为 int32 并添加到 vector
+                    result.push_back(static_cast<int32>(std::stoi(match_str)));
+                }
+                // 如果模板参数 T 是 uint32 类型
+                else if constexpr (std::is_same_v<T, uint32>)
+                {
+                    // 将字符串转换为 uint32 并添加到 vector
+                    // 先用 stoull 防止大数在 stoul 里由于平台差异被静默截断
+                    unsigned long long val = std::stoull(match_str);
+                    if (val > UINT32_MAX)
+                    {
+                        throw std::out_of_range("stoull argument out of uint32 range");
+                    }
+                    result.push_back(static_cast<uint32_t>(val));
+                }
+                // 如果模板参数 T 是 int64 类型
+                else if constexpr (std::is_same_v<T, int64>)
+                {
+                    // 将字符串转换为 int64 并添加到 vector
+                    result.push_back(std::stoll(match_str));
+                }
+                // 如果模板参数 T 是 uint64 类型
+                else if constexpr (std::is_same_v<T, uint64>)
+                {
+                    // 将字符串转换为 uint64 并添加到 vector
+                    result.push_back(std::stoull(match_str));
+                }
+                // 如果模板参数 T 是 float32 类型
+                else if constexpr (std::is_same_v<T, float>)
+                {
+                    // 将字符串转换为 float32 并添加到 vector
+                    result.push_back(std::stof(match_str));
                 }
                 // 如果模板参数 T 是 double 类型
                 else if constexpr (std::is_same_v<T, double>)
