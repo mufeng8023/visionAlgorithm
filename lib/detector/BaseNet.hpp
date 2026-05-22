@@ -17,7 +17,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "NetConfig.h"  // 模型配置
+#include "NetConfig.hpp"  // 模型配置
 #include "NetOutput.hpp"
 #include "common.hpp"  // 打印类别名称
 #include "types.hpp"   // 类型定义

@@ -17,13 +17,11 @@
 #include <string>
 #include <vector>
 
-#include "NetConfig.h"
+#include "NetConfig.hpp"
 #include "NetOutput.hpp"
 #include "ObjectBuffer.hpp"
 #include "common.hpp"
 #include "logging.hpp"
-
-const int MAX_WH = 1080;  // nms的时候对不同类别的box做偏移
 
 namespace yolo
 {
@@ -170,8 +168,6 @@ void non_max_suppression(std::vector<ObjectBuffer>& outputs, float32 iou_thr = 0
     }
 #endif
 
-    //  Settings
-    int max_wh = MAX_WH;  //  (pixels) maximum box width and height
     // outputs 的个数, 即 Batch Size
     uint32 batch_size = outputs.size();
 
