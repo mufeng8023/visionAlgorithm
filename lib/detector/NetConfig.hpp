@@ -54,7 +54,7 @@ typedef struct
     // 模型类型: yolov5 / yolov8 / yolo11 / yolo26
     ModelType model_type = ModelType::yolov5;
     // 模型任务: classification / detection / segmentation / pose / obb
-    TaskType task_type = TaskType::detection;
+    TaskType task = TaskType::detection;
     // 是否使用置信度
     bool has_conf = true;
     // 类别名字
@@ -125,12 +125,12 @@ constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> Tas
  * @param type ModelType :
  * @return
  */
-inline std::string_view model_type_to_string(ModelType type)
+inline std::string model_type_to_string(ModelType type)
 {
     size_t index = static_cast<size_t>(type);
     if (index < ModelStrings.size())
     {
-        return ModelStrings[index];
+        return std::string(ModelStrings[index]);
     }
     return "unknown";
 }
@@ -157,12 +157,12 @@ inline ModelType model_type_from_string(std::string_view str)
  * @param type TaskType :
  * @return
  */
-inline std::string_view task_type_to_string(TaskType type)
+inline std::string task_type_to_string(TaskType type)
 {
     size_t index = static_cast<size_t>(type);
     if (index < TaskStrings.size())
     {
-        return TaskStrings[index];
+        return std::string(TaskStrings[index]);
     }
     return "unknown";
 }
