@@ -36,18 +36,10 @@ typedef struct
     float32 score;
 } KeyPoint;
 
-enum class TaskType : uint8
-{
-    DET,
-    POSE,
-    OBB,
-    SEG
-};
-
 typedef struct
 {
     // === 共有属性 ===
-    TaskType type = TaskType::DET;
+    TaskType type = TaskType::detection;
     Box box;
 
     // === 动态数据: 未 resize 前, 不占用任何堆内存 ===
