@@ -112,12 +112,12 @@ typedef struct
 } DetectionNetConfig;
 
 // 定义映射数组
-constexpr std::array<std::string_view, static_cast<size_t>(ModelType::count)> ModelStrings = {
+constexpr std::array<std::string_view, static_cast<size_t>(ModelType::count)> ModelTypeNames = {
     "yolov3", "yolov4", "yolov5",  "yolov6", "yolov7", "yolov5u",
     "yolov8", "yolov9", "yolov10", "yolo11", "yolo12", "yolo26"};
 
 // 定义映射数组
-constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> TaskStrings = {
+constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> TaskTypeNames = {
     "classification", "detection", "segmentation", "pose", "obb"};
 
 /***
@@ -128,9 +128,9 @@ constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> Tas
 inline std::string model_type_to_string(ModelType type)
 {
     size_t index = static_cast<size_t>(type);
-    if (index < ModelStrings.size())
+    if (index < ModelTypeNames.size())
     {
-        return std::string(ModelStrings[index]);
+        return std::string(ModelTypeNames[index]);
     }
     return "unknown";
 }
@@ -142,9 +142,9 @@ inline std::string model_type_to_string(ModelType type)
  */
 inline ModelType model_type_from_string(std::string_view str)
 {
-    for (size_t i = 0; i < ModelStrings.size(); ++i)
+    for (size_t i = 0; i < ModelTypeNames.size(); ++i)
     {
-        if (ModelStrings[i] == str)
+        if (ModelTypeNames[i] == str)
         {
             return static_cast<ModelType>(i);
         }
@@ -160,9 +160,9 @@ inline ModelType model_type_from_string(std::string_view str)
 inline std::string task_type_to_string(TaskType type)
 {
     size_t index = static_cast<size_t>(type);
-    if (index < TaskStrings.size())
+    if (index < TaskTypeNames.size())
     {
-        return std::string(TaskStrings[index]);
+        return std::string(TaskTypeNames[index]);
     }
     return "unknown";
 }
@@ -174,9 +174,9 @@ inline std::string task_type_to_string(TaskType type)
  */
 inline TaskType task_type_from_string(std::string_view str)
 {
-    for (size_t i = 0; i < TaskStrings.size(); ++i)
+    for (size_t i = 0; i < TaskTypeNames.size(); ++i)
     {
-        if (TaskStrings[i] == str)
+        if (TaskTypeNames[i] == str)
         {
             return static_cast<TaskType>(i);
         }
