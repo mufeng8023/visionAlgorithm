@@ -20,31 +20,32 @@
 namespace yolo
 {
 
-enum class ModelType
+enum class ModelType : uint8
 {
     yolov3 = 0,  //
-    yolov4 = 1,
-    yolov5 = 2,  // anchor-base
-    yolov6 = 3,
-    yolov7 = 4,
-    yolov5u = 5,  // anchor-free, u是指ultralytics
-    yolov8 = 6,
-    yolov9 = 7,
-    yolov10 = 8,
-    yolo11 = 9,
-    yolo12 = 10,
-    yolo26 = 11,
-};
+    yolov4,
+    yolov5,  // anchor-base
+    yolov6,
+    yolov7,
+    yolov5u,  // anchor-free, u是指ultralytics
+    yolov8,
+    yolov9,
+    yolov10,
+    yolo11,
+    yolo12,
+    yolo26,
+    count  // 技巧: 放在最后自动代表枚举的总数
+};  // 如果修改了枚举值, 需要修改这个映射数组ModelStrings
 
-enum class TaskType
+enum class TaskType : uint8
 {
     classification = 0,
-    detection = 1,
-    segmentation = 2,
-    pose = 3,
-    obb = 4,
-
-};
+    detection,
+    segmentation,
+    pose,
+    obb,
+    count  // 技巧: 放在最后自动代表枚举的总数
+};  // 如果修改了枚举值, 需要修改这个映射数组TaskStrings
 
 typedef struct
 {
@@ -109,6 +110,79 @@ typedef struct
     std::vector<uint32> net_out_w = {};
 
 } DetectionNetConfig;
+
+// 定义映射数组
+constexpr std::array<std::string_view, static_cast<size_t>(ModelType::count)> ModelStrings = {
+    "yolov3", "yolov4", "yolov5",  "yolov6", "yolov7", "yolov5u",
+    "yolov8", "yolov9", "yolov10", "yolo11", "yolo12", "yolo26"};
+
+// 定义映射数组
+constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> TaskStrings = {
+    "classification", "detection", "segmentation", "pose", "obb"};
+
+/***
+ * @description: 枚举转字符串 (O(1) 性能)
+ * @param type ModelType :
+ * @return
+ */
+inline std::string_view model_type_to_string(ModelType type)
+{
+    size_t index = static_cast<size_t>(type);
+    if (index < ModelStrings.size())
+    {
+        return ModelStrings[index];
+    }
+    return "unknown";
+}
+
+/***
+ * @description: 字符串转枚举 (依然需要遍历，但代码很干净)
+ * @param str string_view :
+ * @return
+ */
+inline ModelType model_type_from_string(std::string_view str)
+{
+    for (size_t i = 0; i < ModelStrings.size(); ++i)
+    {
+        if (ModelStrings[i] == str)
+        {
+            return static_cast<ModelType>(i);
+        }
+    }
+    throw std::invalid_argument("Unknown ModelType string");
+}
+
+/***
+ * @description: 枚举转字符串 (O(1) 性能)
+ * @param type TaskType :
+ * @return
+ */
+inline std::string_view task_type_to_string(TaskType type)
+{
+    size_t index = static_cast<size_t>(type);
+    if (index < TaskStrings.size())
+    {
+        return TaskStrings[index];
+    }
+    return "unknown";
+}
+
+/***
+ * @description: 字符串转枚举
+ * @param str string_view :
+ * @return
+ */
+inline TaskType task_type_from_string(std::string_view str)
+{
+    for (size_t i = 0; i < TaskStrings.size(); ++i)
+    {
+        if (TaskStrings[i] == str)
+        {
+            return static_cast<TaskType>(i);
+        }
+    }
+    throw std::invalid_argument("unknown");
+}
 
 }  // namespace yolo
 
