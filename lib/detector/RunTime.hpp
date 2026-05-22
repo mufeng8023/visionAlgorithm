@@ -20,6 +20,48 @@
 namespace yolo
 {
 
+enum class ModelBench : uint8
+{
+    OpenCV = 0,
+    count,
+};  // 如果修改了这个枚举, 需要修改 model_bench_names
+
+constexpr std::array<std::string_view, static_cast<size_t>(ModelBench::count)> ModelBenchNames = {
+    "OpenCV",
+};
+
+/***
+ * @description: 枚举转字符串 (O(1) 性能)
+ * @param type ModelType :
+ * @return
+ */
+inline std::string model_bench_to_string(ModelBench type)
+{
+    size_t index = static_cast<size_t>(type);
+    if (index < ModelBenchNames.size())
+    {
+        return std::string(ModelBenchNames[index]);
+    }
+    return "unknown";
+}
+
+/***
+ * @description: 字符串转枚举 (依然需要遍历，但代码很干净)
+ * @param str string_view :
+ * @return
+ */
+inline ModelBench model_bench_from_string(std::string_view str)
+{
+    for (size_t i = 0; i < ModelBenchNames.size(); ++i)
+    {
+        if (ModelBenchNames[i] == str)
+        {
+            return static_cast<ModelBench>(i);
+        }
+    }
+    throw std::invalid_argument("Unknown ModelBench string");
+}
+
 /***
  * @description:
  * 加载 ini 配置文件, 初始化配置
@@ -46,9 +88,9 @@ class RunTime
      * @param config_path string& :
      * @return
      */
-    RunTime(const std::string& config_path,           //
-            const ModelPathParams& param,             //
-            const std::string& net_bench = "opencv",  //
+    RunTime(const std::string& config_path,                    //
+            const ModelPathParams& param,                      //
+            const ModelBench& net_bench = ModelBench::OpenCV,  //
             int32 device = -1)
     {
         // 加载配置文件
@@ -65,17 +107,19 @@ class RunTime
         }
 
         // 初始化模型
-        if (net_bench == "opencv")
-        {
-            this->net = std::make_shared<OpencvNet>(this->config);
-            this->net->load_model(param, device);
+        switch (net_bench)
 
-            LOG_DEFAULT_INFO("Init OpenCVNet Success!");
-        }
-        // TODO: 后续实现其他框架
-        else
         {
-            LOG_DEFAULT_ERROR("net bench: %s not support;", net_bench.c_str());
+            case ModelBench::OpenCV:
+                this->net = std::make_shared<OpencvNet>(this->config);
+                this->net->load_model(param, device);
+
+                LOG_DEFAULT_INFO("Init OpenCVNet Success!");
+                break;
+
+            // TODO: 后续实现其他框架
+            default:
+                LOG_DEFAULT_ERROR("net bench: %s not support;", model_bench_to_string(net_bench).c_str());
         }
 
         // 初始化后处理
@@ -215,6 +259,13 @@ class RunTime
                         {
                             // 当前关键点起始索引
                             uint32 kpt_start_idx = ObjectOffset::extra_start + keypoint_idx * this->config.kpt_dim;
+
+                            if (kpt_start_idx + 2 > stride)
+                            {
+                                // 访问越界
+                                LOG_DEFAULT_ERROR("kpt_start_idx + 2 > stride");
+                            }
+
                             // 添加关键点信息
                             det_results[batch_idx].back().kpts.emplace_back(KeyPoint());
                             det_results[batch_idx].back().kpts.back().x = result_base_addr[kpt_start_idx + 0];
@@ -222,7 +273,7 @@ class RunTime
 
                             if (this->config.kpt_dim == 3)
                             {
-                                det_results[batch_idx].back().kpts.back().score = result_base_addr[kpt_start_idx + 3];
+                                det_results[batch_idx].back().kpts.back().score = result_base_addr[kpt_start_idx + 2];
                             }
                             else if (this->config.kpt_dim == 2)
                             {
