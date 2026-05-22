@@ -17,14 +17,43 @@
 
 #include "types.hpp"
 
+namespace yolo
+{
+
+enum class ModelType
+{
+    yolov3 = 0,  //
+    yolov4 = 1,
+    yolov5 = 2,  // anchor-base
+    yolov6 = 3,
+    yolov7 = 4,
+    yolov5u = 5,  // anchor-free, u是指ultralytics
+    yolov8 = 6,
+    yolov9 = 7,
+    yolov10 = 8,
+    yolo11 = 9,
+    yolo12 = 10,
+    yolo26 = 11,
+};
+
+enum class TaskType
+{
+    classification = 0,
+    detection = 1,
+    segmentation = 2,
+    pose = 3,
+    obb = 4,
+
+};
+
 typedef struct
 {
     // 模型名称
     std::string model_name = "";
     // 模型类型: yolov5 / yolov8 / yolo11 / yolo26
-    std::string model_type = "yolov5";
-    // 模型任务: detection / classification / segmentation / pose / obb
-    std::string task = "detection";
+    ModelType model_type = ModelType::yolov5;
+    // 模型任务: classification / detection / segmentation / pose / obb
+    TaskType task_type = TaskType::detection;
     // 是否使用置信度
     bool has_conf = true;
     // 类别名字
@@ -80,5 +109,7 @@ typedef struct
     std::vector<uint32> net_out_w = {};
 
 } DetectionNetConfig;
+
+}  // namespace yolo
 
 #endif  // !__NETCONFIG__H__
