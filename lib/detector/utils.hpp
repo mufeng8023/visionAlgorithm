@@ -20,7 +20,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "NetConfig.h"
+#include "NetConfig.hpp"
 #include "ini_parser.hpp"
 #include "logging.hpp"
 #include "types.hpp"
@@ -119,12 +119,12 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     LOG_DEFAULT_INFO("model_name:%s", config.model_name.c_str());
 
     // 模型类型, 根据名字选择后处理方式
-    config.model_type = to_lower(ini_parser.get_string("detection", "model_type", "unknow"));
-    LOG_DEFAULT_INFO("model_type:%s", config.model_type.c_str());
+    config.model_type = model_type_from_string(to_lower(ini_parser.get_string("detection", "model_type", "unknow")));
+    LOG_DEFAULT_INFO("model_type:%s", model_type_to_string(config.model_type).c_str());
 
     // 任务类型, 根据名字选择后处理方式
-    config.task = to_lower(ini_parser.get_string("detection", "task", "unknow"));
-    LOG_DEFAULT_INFO("task:%s", config.task.c_str());
+    config.task = task_type_from_string(to_lower(ini_parser.get_string("detection", "task", "unknow")));
+    LOG_DEFAULT_INFO("task:%s", task_type_to_string(config.task).c_str());
 
     // 输出中是否包括置信度, yolov5-face 和 yolov8 / yolo11 / yolo26 是没有的, 为false;
     config.has_conf = ini_parser.get_bool("detection", "has_conf", false);
@@ -182,6 +182,16 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     config.anchors = ini_parser.get_array2d<float32>("detection", "anchors");
     LOG_DEFAULT_INFO("anchors:%s", table_to_string(config.anchors).c_str());
 
+    if (config.model_type == ModelType::yolov5 && config.anchors.empty())
+    {
+        LOG_DEFAULT_ERROR(
+            "The yolov5 model must have anchors. yolov5u is an anchor-free model. "
+            "Please confirm whether you intended to specify yolov5u.");
+        throw std::runtime_error(
+            "The yolov5 model must have anchors. yolov5u is an anchor-free model. "
+            "Please confirm whether you intended to specify yolov5u.");
+    }
+
     // 需要计算的一些步骤和参数
     // 类别数量
     config.nc = config.names.size();
@@ -192,10 +202,10 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     // 输出的信息数量
     // anchor-base yolov5: 4 + [1 if has_conf else 0] + nc + kpt_count * kpt_dim
     // anchor-free yolov8: 4 + nc + kpt_count * kpt_dim
-    if (config.task == "detection")
+    if (config.task == TaskType::detection)
     {
         // anchor-base 只有 yolov5-face 才需要 conf
-        if (config.model_type == "yolov5" && config.has_conf)
+        if (config.model_type == ModelType::yolov5 && config.has_conf)
         {
             config.no = 4 + 1 + config.nc;
         }
@@ -204,10 +214,10 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
             config.no = 4 + config.nc;
         }
     }
-    else if (config.task == "pose")
+    else if (config.task == TaskType::pose)
     {
         // anchor-base 只有 yolov5-face 才需要 conf
-        if (config.model_type == "yolov5" && config.has_conf)
+        if (config.model_type == ModelType::yolov5 && config.has_conf)
         {
             config.no = 4 + 1 + config.nc + config.kpt_count * config.kpt_dim;
         }
@@ -218,7 +228,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     }
     else
     {
-        LOG_DEFAULT_ERROR("task:%s not support", config.task.c_str());
+        LOG_DEFAULT_ERROR("task:%s not support", task_type_to_string(config.task).c_str());
         // 抛出异常, 退出程序
         throw std::runtime_error("task not support");
     }
@@ -257,7 +267,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
  * @param {bool} is_rgb 返回颜色的类型
  * @return {*}
  */
-std::tuple<uint8, uint8, uint8> getColor(int32 index, bool is_rgb)
+std::tuple<uint8, uint8, uint8> get_color(int32 index, bool is_rgb)
 {
     // 定义一个 lambda 函数，用于根据 HSL 转换为 RGB
     // p 和 q 是计算 RGB 时的中间值，t 是色相值，计算公式源自 HSL 到 RGB 的转换公式
