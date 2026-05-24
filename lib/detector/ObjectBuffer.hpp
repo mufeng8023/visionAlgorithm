@@ -201,7 +201,7 @@ class ObjectBuffer
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
 
         // 0 表示 无效, 1 表示 有效
-        return this->valid_mask[obj_idx] != ObjStatus::Invalid;
+        return this->valid_mask[obj_idx] == ObjStatus::Valid;
     }
 
     /***
