@@ -213,7 +213,8 @@ class OpencvNet : public BaseNet
         }
 
         // 定义模型需要的输入尺寸 (根据你的模型修改)
-        cv::Size input_size(this->input_height, this->input_width);
+        // cv::Size(width, height) - 第一个参数是宽度, 第二个参数是高度
+        cv::Size input_size(this->input_width, this->input_height);
         // 通过 scalefactor 和 mean 对数据进行 归一化;
         // img * scalefactor
         float64 scalefactor = 1.0;
