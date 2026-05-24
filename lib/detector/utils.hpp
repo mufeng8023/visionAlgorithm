@@ -323,6 +323,9 @@ std::tuple<float32, int32, int32> pre_process_resize_img(const cv::Mat& image,  
         dh = 0;
     }
 
+    // 先为 padded_img 分配内存 (创建指定大小的黑色图像)
+    padded_img = cv::Mat::zeros(target_height, target_width, image.type());
+
     // 将缩放后的图像放置在中心位置
     resized_img.copyTo(padded_img(cv::Rect(dw, dh, new_width, new_height)));
 
