@@ -126,7 +126,7 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
             }
 
             // 如果 IoU 大于阈值，则将框 j 标记为无效
-            if (std::abs(iou - iou_thr) >= 1e-5f)
+            if (iou >= iou_thr)
             {
                 output.set_valid(obj_idx_j, false);
             }
