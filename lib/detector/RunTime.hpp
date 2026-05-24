@@ -311,6 +311,7 @@ class RunTime
                         break;  // case TaskType::detection
 
                     case TaskType::pose:
+                    {
                         batch_det_results.back().type = TaskType::pose;
 
                         if (batch_det_results.back().kpts.capacity() < this->config.kpt_count)
@@ -358,12 +359,14 @@ class RunTime
                                 LOG_DEFAULT_ERROR("kpt_dim error! kpt_dim = %d, expected 2 or 3", this->config.kpt_dim);
                             }
                         }
-                        break;  // case TaskType::pose
+                        break;
+                    }  // case TaskType::pose
 
                     // TODO: 添加其他任务类型
                     default:
+                        LOG_DEFAULT_ERROR("task type error!");
                         break;
-                }
+                }  // switch (this->config.task)
             }  // for batch_results.get_obj_count()
 
             // 清空上一批的推理结果
