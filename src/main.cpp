@@ -9,10 +9,13 @@
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
 #include <unordered_map>
+#include <vector>
 
 #include "RunTime.hpp"
+#include "YoloObject.h"
 #include "args.hpp"
 #include "logging.hpp"
+#include "myFilesystem.hpp"
 #include "types.hpp"
 
 struct ArgsConfig
@@ -22,11 +25,13 @@ struct ArgsConfig
     // 模型配置文件
     std::string model_ini_path = "";
     // 模型框架
-    std::string model_bench = "opencv";
+    yolo::ModelBench model_bench = yolo::ModelBench::OpenCV;
     // 模型配置
     yolo::ModelPathParams model_path_param;
     // 使用的设备编号
     int32 device = -1;
+    // 测试图片路径
+    std::string test_image_path = "";
 
 } ArgsConfig;  // 一个全局变量,专门接收命令行参数
 
@@ -56,12 +61,13 @@ int32 parser_args(int argc, char* argv[])
 
     // 定义允许的可选列表映射
     // 键Key 是用户在命令行输入的字符串, 值Value 是程序实际接收到的值
-    const std::unordered_map<std::string, std::string> allowed_models = {
-        {"opencv", "opencv"},  // onnx
+    const std::unordered_map<std::string, yolo::ModelBench> allowed_models = {
+        {"opencv", yolo::ModelBench::OpenCV},  // onnx
     };
     // 使用 args::MapFlag 代替 args::ValueFlag
-    args::MapFlag<std::string, std::string> model_bench(
-        parser, "model_bench", format_string("模型框架 (可选: opencv ); 默认: %s", ArgsConfig.model_bench.c_str()),
+    args::MapFlag<std::string, yolo::ModelBench> model_bench(
+        parser, "model_bench",
+        format_string("模型框架 (可选: opencv ); 默认: %s", model_bench_to_string(ArgsConfig.model_bench).c_str()),
         {"model_bench"},
         allowed_models,         // 传入允许的选择列表
         ArgsConfig.model_bench  // 默认值
@@ -75,6 +81,8 @@ int32 parser_args(int argc, char* argv[])
 
     args::ValueFlag<int32> device(parser, "device", format_string("使用的设备编号; 默认: %d", ArgsConfig.device),
                                   {"device"}, ArgsConfig.device);
+
+    args::ValueFlag<std::string> test_image_path(parser, "test_image_path", "测试图片路径", {"test_image_path"}, "");
 
     try
     {
@@ -92,14 +100,15 @@ int32 parser_args(int argc, char* argv[])
         ArgsConfig.model_bench = args::get(model_bench);
         ArgsConfig.model_ini_path = args::get(model_ini_path);
         ArgsConfig.device = args::get(device);
+        ArgsConfig.test_image_path = args::get(test_image_path);
 
-        if (ArgsConfig.model_bench == "opencv")
+        if (ArgsConfig.model_bench == yolo::ModelBench::OpenCV)
         {
             ArgsConfig.model_path_param.onnx_path = args::get(model_path);
         }
         else
         {
-            LOG_DEFAULT_ERROR("模型框架暂不支持: %s", ArgsConfig.model_bench.c_str());
+            LOG_DEFAULT_ERROR("模型框架暂不支持");
             return 3;  // 返回错误码 3 表示模型框架暂不支持
         }
     }
@@ -178,7 +187,7 @@ void ini_init_logger(const std::string& ini_path)
 int32 main(int argc, char* argv[])
 {
     // 初始化命令行参数
-    int return_code = parser_args(argc, argv);
+    int32 return_code = parser_args(argc, argv);
     if (return_code > 0)
     {
         if (return_code == 1)  // Help was requested
@@ -188,13 +197,45 @@ int32 main(int argc, char* argv[])
     }
 
     // 初始化日志器
-    ini_init_logger(ArgsConfig.log_ini_path);
+    if (!ArgsConfig.log_ini_path.empty())
+    {
+        ini_init_logger(ArgsConfig.log_ini_path);
+    }
+    else
+    {
+        throw std::runtime_error("日志的配置文件路径不能为空");
+    }
 
     // 初始化模型运行时
     yolo::RunTime run_time(ArgsConfig.model_ini_path,    // 模型配置文件路径
                            ArgsConfig.model_path_param,  // 模型路径参数
                            ArgsConfig.model_bench,       // 模型框架
                            ArgsConfig.device);           // 使用的设备编号
+
+    // 运行模型
+    // 读图片
+    cv::Mat image = cv::imread(ArgsConfig.test_image_path);
+    if (image.empty())
+    {
+        LOG_DEFAULT_ERROR("读取图片失败");
+        return 1;
+    }
+
+    // 运行模型
+    std::vector<cv::Mat> images_bgr;
+    images_bgr.push_back(image);
+    // 保存结果的对象
+    std::vector<std::vector<yolo::YoloObject>> det_results;
+    LOG_DEFAULT_INFO("运行模型");
+    run_time(images_bgr, det_results);
+
+    // 绘制边界框
+    run_time.draw_result(images_bgr, det_results);
+
+    // 保存会之后的结果
+    std::string save_path = "../test_res/result.jpg";
+    myfs::makedirs(myfs::path_dirname(save_path));
+    cv::imwrite(save_path, images_bgr[0]);
 
     return 0;
 }
