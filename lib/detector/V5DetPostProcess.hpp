@@ -82,7 +82,7 @@ class V5DetPostProcess : public BasePostProcess
         this->net_out_h = config.net_out_h;
         this->net_out_w = config.net_out_w;
 
-        for (int i = 0; i < this->nl; i++)
+        for (uint32 i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
             this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] *
@@ -271,7 +271,7 @@ class V5DetPostProcess : public BasePostProcess
     void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) override
     {
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
-        for (int i = 0; i < this->nl; ++i)
+        for (uint32 i = 0; i < this->nl; ++i)
         {
             this->process_one(outputs[i],              // 当前层的输出
                               results,                 // 当前层的对象结果

@@ -78,7 +78,7 @@ class OpencvNet : public BaseNet
         this->net_out_h = config.net_out_h;
         this->output_w = config.net_out_w;
 
-        for (int i = 0; i < this->nl; i++)
+        for (uint32 i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
             this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] * this->output_w[i]);
