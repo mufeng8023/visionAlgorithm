@@ -14,6 +14,7 @@
 #include "OpencvNet.hpp"
 #include "V5DetPostProcess.hpp"
 #include "YoloObject.h"
+#include "draw_result.hpp"
 #include "logging.hpp"
 #include "utils.hpp"
 
@@ -371,6 +372,34 @@ class RunTime
 
         }  // for this->config.batch_size
     }  // operator()
+
+    /***
+     * @description:
+     * @param image_bgr Mat& :  输入图片
+     * @param det_results std::vector<YoloObject>& : 检测结果
+     * @return
+     */
+    void draw_result(std::vector<cv::Mat>& images_bgr, const std::vector<std::vector<yolo::YoloObject>>& det_results)
+    {
+        // 每张图单独绘制边界框
+        for (uint32 i = 0; i < images_bgr.size(); ++i)
+        {
+            switch (this->config.task)
+            {
+                case TaskType::detection:
+                    draw_detection_result(images_bgr[i], det_results[i], this->config.names);
+                    break;  // case TaskType::detection
+
+                case TaskType::pose:
+                    draw_pose_result(images_bgr[i], det_results[i], this->config.names);
+                    break;  // case TaskType::pose
+
+                // TODO: 添加其他任务类型
+                default:
+                    break;
+            }  // switch (this->config.task)
+        }  // for (uint32 i = 0; i < images_bgr.size(); ++i)
+    }
 };
 
 }  // namespace yolo
