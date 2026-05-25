@@ -19,14 +19,11 @@ find_package(OpenCV REQUIRED)
 # set(CMAKE_BUILD_TYPE Debug or Release)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 
-# 添加编译选项:add_compile_options(-Wall -g)
-# -g:输出带调试信息的可执行文件
-# -O[n]:优化代码, 一般为-O2
-# -Wall:输出警告信息
-# -std=c++17:设置编译标准
-# -D:定义宏
-# add_compile_options(-Wall -g)
-add_compile_options(-Wall -g -std=c++17 -O2)
+# 编译时日志级别选项 (对应 logging.hpp 中的 LOG_COMPILE_LEVEL)
+# 可选值: 0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical
+set(LOG_COMPILE_LEVEL 1 CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical)")
+# 将用户设置的日志级别通过 -D 宏传递给编译器
+add_compile_options(-Wall -g -std=c++17 -O2 -DLOG_COMPILE_LEVEL=${LOG_COMPILE_LEVEL})
 
 # 添加头文件搜索路径:include_directories(./include)
 # include_directories(include_PATH)
