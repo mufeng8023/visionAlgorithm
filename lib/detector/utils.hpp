@@ -243,11 +243,23 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     config.min_conf = *std::min_element(config.conf_thrs.begin(), config.conf_thrs.end());
 
     // 确保 scale_outputs / anchors / strides 数量一致
-    if (config.scale_outputs.size() != config.nl || config.anchors.size() != config.nl)
+    if (config.model_type == ModelType::yolov5)
     {
-        LOG_DEFAULT_ERROR("scale_outputs:%d / anchors:%d / strides:%d size not equal to nl:%d",
-                          config.scale_outputs.size(), config.anchors.size(), config.strides.size(), config.nl);
-        throw std::runtime_error("scale_outputs / anchors / strides size not equal");
+        if (config.scale_outputs.size() != config.nl || config.anchors.size() != config.nl)
+        {
+            LOG_DEFAULT_ERROR("scale_outputs:%d / anchors:%d / strides:%d size not equal to nl:%d",
+                              config.scale_outputs.size(), config.anchors.size(), config.strides.size(), config.nl);
+            throw std::runtime_error("scale_outputs / anchors / strides size not equal");
+        }
+    }
+    else
+    {
+        if (config.scale_outputs.size() != config.nl)
+        {
+            LOG_DEFAULT_ERROR("scale_outputs:%d / strides:%d size not equal to nl:%d", config.scale_outputs.size(),
+                              config.strides.size(), config.nl);
+            throw std::runtime_error("scale_outputs / strides size not equal");
+        }
     }
     // 计算特征图的宽高 input_wh / strides[i]
     config.net_out_h.clear();
