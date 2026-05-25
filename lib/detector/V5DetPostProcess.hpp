@@ -122,12 +122,6 @@ class V5DetPostProcess : public BasePostProcess
     ~V5DetPostProcess() = default;
 
     /***
-     * @description:
-     * @param output NetOutput& :
-     * @param result ObjectBuffer& :
-     * @return
-     */
-    /***
      * @description: 处理一层输出特征图
      * @param output NetOutput& : 输出的网络特征图
      * @param result ObjectBuffer& : 解析出来的结果
@@ -145,70 +139,74 @@ class V5DetPostProcess : public BasePostProcess
                      const uint32 net_out_w,               //
                      const uint32 stride)
     {
+        // NOTE: 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
+        const uint32 grid_size = net_out_h * net_out_w;
+        // 计算类别的偏移量
+        const uint32 class_offset = this->has_conf ? 5 : 4;
+
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
         for (uint32 batch_idx = 0; batch_idx < this->batch_size; ++batch_idx)
         {
-            // 当前batch的首地址索引
-            uint32 batch_addr = batch_idx * this->na * this->no * net_out_h * net_out_w;
-
-            // 根据 batch 获取 result
-            ObjectBuffer& result = results[batch_idx];
-
             // 遍历每个特征图的位置 (na * no, h, w)
             // 遍历anchor索引
             for (uint32 anchor_idx = 0; anchor_idx < this->na; ++anchor_idx)
             {
-                // 一个通道的元素个数 height * width
-                // 一组通道的元素总个数 no * height * width
-                // 第a组的首地址 a * no * height * width
-                // 这一组的首地址
-                uint32 group_addr = batch_addr + anchor_idx * this->no * net_out_h * net_out_w;
+                // 根据 batch 获取 result
+                ObjectBuffer& result = results[batch_idx];
+
+                // 这里计算的是每个 batch 的 每个 anchor 实际索引, 用来计算偏移量
+                // 将原本四维寻址展平 (batch, na * no, h, w) -> ( batch * na * no * h * w, )
+                // 来看 base_ch_idx 是 指 当前 batch 第几个 组anchor 的索引
+                // 实际的计算应该是: batch_idx * this->na * this->no + anchor_idx * this->no
+                uint32 base_ch_idx = (batch_idx * this->na + anchor_idx) * this->no;
+
+                // 获取当 batch 的第 anchor_idx 的首地址, 后续通过 base_output_ptr[idx] 访问数据
+                const float32* base_output_ptr = output.data() + base_ch_idx * grid_size;
 
                 // 当前组的 anchor
-                uint32 anchor_w = anchors[anchor_idx * 2];
-                uint32 anchor_h = anchors[anchor_idx * 2 + 1];
+                const uint32& anchor_w = anchors[anchor_idx * 2];
+                const uint32& anchor_h = anchors[anchor_idx * 2 + 1];
+
+                // 核心优化: 在进入循环之前, 先将 x / y / w / h / conf / nc 的各自通道的 [绝对首地址] 指针
+                // 彻底消除了原代码最内层中类似 [feature_addr + k * channel_stride] 的复杂乘法寻址
+                const float32* x_ptr = base_output_ptr + 0 * grid_size;
+                const float32* y_ptr = base_output_ptr + 1 * grid_size;
+                const float32* w_ptr = base_output_ptr + 2 * grid_size;
+                const float32* h_ptr = base_output_ptr + 3 * grid_size;
+                // 要注意, conf_ptr 是可选的, 如果没有置信度通道, 则为 nullptr
+                const float32* conf_ptr = this->has_conf ? base_output_ptr + 4 * grid_size : nullptr;
+                // 类别首地址, 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
+                // has_conf 为 true 时, class_offset = 4 + 1 = 5
+                // has_conf 为 false 时, class_offset = 4
+                const float32* class_ptr = base_output_ptr + class_offset * grid_size;
 
                 // 遍历每个位置 (特征图网格)
+                // 核心优化,将 grid_y 和 grid_x 调整至最内层
+                // 这样在进行 `[offset]` 访问时, 内存是完全连续线性扫描的, 极大地提升了 CPU Cache 命中率
                 for (uint32 grid_y = 0; grid_y < net_out_h; ++grid_y)
                 {
+                    // 提前计算 当前行首地址 相对于 grid 的首地址的偏移量
+                    uint32 row_offset = grid_y * net_out_w;
+
                     for (uint32 grid_x = 0; grid_x < net_out_w; ++grid_x)
                     {
-                        // 当前位置相对于当前组的偏移
-                        uint32 grid_offset = grid_y * net_out_w + grid_x;
-
-                        // 最大类别分数
-                        float32 max_class_score = -1.0f;
-                        // 最大分数对应的类别索引
-                        uint32 max_class_idx = 0;
-                        // 置信度 (box confidence)
-                        float32 box_conf = 1.0f;
-
-                        // 类别信息的起始偏移 (相对于x,y,w,h)
-                        uint32 class_offset = 5;
-                        if (!this->has_conf)
-                        {
-                            // 没有置信度通道时, 类别从第5个位置开始 (idx=4)
-                            class_offset = 4;
-                        }
+                        // 计算当前 像素点 在 grid 的实际 偏移量
+                        uint32 grid_offset = row_offset + grid_x;
 
                         // 获取当前已检测到的目标数量
                         uint32 output_idx = result.get_obj_count();
                         if (output_idx > this->max_det)
                         {
-                            // 超过最大检测数, 跳过
-                            continue;
+                            // 超过最大检测数, 直接退出
+                            break;
                         }
 
-                        // 当前网格特征的首地址
-                        uint32 feature_addr = group_addr + grid_offset;
-                        // 通道间的偏移量 (用于在C维度上跳跃)
-                        uint32 channel_stride = net_out_h * net_out_w;
-
                         // 获取box置信度 (如果有conf通道的话)
+                        float32 box_conf = 1.0f;
                         if (this->has_conf)
                         {
-                            box_conf = output[feature_addr + 4 * channel_stride] * scale_output;
+                            box_conf = conf_ptr[grid_offset] * scale_output;
                         }
                         // 置信度小于阈值, 跳过
                         if (box_conf < this->min_conf)
@@ -216,18 +214,24 @@ class V5DetPostProcess : public BasePostProcess
                             continue;
                         }
 
+                        // 最大类别分数
+                        float32 max_class_score = -1.0f;
+                        // 最大分数对应的类别索引
+                        uint32 max_class_idx = 0;
+
                         // 遍历所有类别, 找出最大分数和对应类别
-                        float32 class_score = 0.0f;
                         for (uint32 class_idx = 0; class_idx < this->nc; ++class_idx)
                         {
-                            class_score =
-                                output[feature_addr + (class_offset + class_idx) * channel_stride] * scale_output;
+                            // 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
+                            float32 class_score = class_ptr[grid_offset] * scale_output;
+
                             if (max_class_score < class_score)
                             {
                                 max_class_score = class_score;
                                 max_class_idx = class_idx;
                             }
                         }
+
                         // 最终置信度 = box_conf * max_class_score
                         box_conf *= max_class_score;
 
@@ -242,19 +246,22 @@ class V5DetPostProcess : public BasePostProcess
                         result.set_valid(output_idx, true);
 
                         // 解码边界框 (x, y, w, h)
-                        float32 decoded_val = 0.0f;
                         // x坐标: (tx * 2 - 0.5 + cx) * stride
-                        decoded_val = output[feature_addr + 0 * channel_stride] * scale_output * 2.0f;
-                        result[output_idx][0] = (decoded_val + grid_x - 0.5f) * stride;
+                        float32 dx = x_ptr[grid_offset] * scale_output * 2.0f;
+                        result[output_idx][0] = (dx + grid_x - 0.5f) * stride;
+
                         // y坐标
-                        decoded_val = output[feature_addr + 1 * channel_stride] * scale_output * 2.0f;
-                        result[output_idx][1] = (decoded_val + grid_y - 0.5f) * stride;
-                        // w宽度: pw * (2 * tx)^2
-                        decoded_val = output[feature_addr + 2 * channel_stride] * scale_output * 2.0f;
-                        result[output_idx][2] = pow(decoded_val, 2.0f) * anchor_w;
-                        // h高度
-                        decoded_val = output[feature_addr + 3 * channel_stride] * scale_output * 2.0f;
-                        result[output_idx][3] = pow(decoded_val, 2.0f) * anchor_h;
+                        float32 dy = y_ptr[grid_offset] * scale_output * 2.0f;
+                        result[output_idx][1] = (dy + grid_y - 0.5f) * stride;
+
+                        // w宽度: pw * (2 * tx)^2; 使用乘法代替 pow
+                        float32 dw = w_ptr[grid_offset] * scale_output * 2.0f;
+                        result[output_idx][2] = dw * dw * anchor_w;
+
+                        // h高度: ph * (2 * ty)^2; 使用乘法代替 pow
+                        float32 dh = h_ptr[grid_offset] * scale_output * 2.0f;
+                        result[output_idx][3] = dh * dh * anchor_h;
+
                         // 存储最终置信度和类别索引
                         result[output_idx][4] = box_conf;
                         result[output_idx][5] = static_cast<float32>(max_class_idx);
