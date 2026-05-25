@@ -13,6 +13,7 @@
 
 #include "OpencvNet.hpp"
 #include "V5DetPostProcess.hpp"
+#include "V5PosePostProcess.hpp"
 #include "YoloObject.h"
 #include "draw_result.hpp"
 #include "logging.hpp"
@@ -130,7 +131,7 @@ class RunTime
                 switch (this->config.model_type)
                 {
                     case ModelType::yolov5:
-                        // 初始化V5DetPostProcess
+                        // 初始化 V5DetPostProcess
                         this->postProcess = std::make_shared<V5DetPostProcess>(this->config);
                         LOG_DEFAULT_INFO("Init V5DetPostProcess Success!");
                         break;  // case ModelType::yolov5
@@ -143,6 +144,27 @@ class RunTime
                 }
                 break;
             }  // case TaskType::detection
+
+            case TaskType::pose:
+            {
+                extra_dim = this->config.kpt_count * this->config.kpt_dim;  // 姿态估计任务, 需要保存关键点信息
+
+                switch (this->config.model_type)
+                {
+                    case ModelType::yolov5:
+                        // 初始化 V5PosePostProcess
+                        this->postProcess = std::make_shared<V5PosePostProcess>(this->config);
+                        LOG_DEFAULT_INFO("Init V5PosePostProcess Success!");
+                        break;  // case ModelType::yolov5
+
+                    // TODO: 后续实现 yolov8 / yolo11 / yolo26 / yolov9 / yolov10 / yolov12 等
+                    default:
+                        LOG_DEFAULT_ERROR("model type: %s not support;",
+                                          model_type_to_string(this->config.model_type).c_str());
+                        break;
+                }
+                break;
+            }  // case TaskType::pose
 
             // TODO: 待实现的其他任务
             default:
