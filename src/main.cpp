@@ -233,7 +233,7 @@ int32 main(int argc, char* argv[])
     run_time.draw_result(images_bgr, det_results);
 
     // 保存会之后的结果
-    std::string save_path = "../test_res/result.jpg";
+    std::string save_path = myfs::path_join("../test_res_temp", myfs::path_basename(ArgsConfig.test_image_path));
     myfs::makedirs(myfs::path_dirname(save_path));
     cv::imwrite(save_path, images_bgr[0]);
 
