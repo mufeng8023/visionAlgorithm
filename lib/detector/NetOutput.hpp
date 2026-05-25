@@ -197,6 +197,13 @@ class NetOutput
     float32* data() { return this->buffer.data(); }
 
     /***
+     * @description: 获取底层指针, 方便对接 C 风格接口, const 版本
+     * @param this return :
+     * @return
+     */
+    const float32* data() const { return this->buffer.data(); }
+
+    /***
      * @description: 只读获取Batch
      * @return
      */
