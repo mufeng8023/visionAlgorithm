@@ -62,12 +62,27 @@ int32 parser_args(int argc, char* argv[])
     // 定义允许的可选列表映射
     // 键Key 是用户在命令行输入的字符串, 值Value 是程序实际接收到的值
     const std::unordered_map<std::string, yolo::ModelBench> allowed_models = {
-        {"opencv", yolo::ModelBench::OpenCV},  // onnx
+        {"OpenCV", yolo::ModelBench::OpenCV},  // onnx
+    };
+    // 定义匿名函数
+    auto get_keys_string = [](const std::unordered_map<std::string, yolo::ModelBench>& map) -> std::string
+    {
+        std::string result;
+        bool first = true;
+        for (const auto& pair : map)
+        {
+            if (!first)
+                result += ", ";
+            result += pair.first;
+            first = false;
+        }
+        return result;
     };
     // 使用 args::MapFlag 代替 args::ValueFlag
     args::MapFlag<std::string, yolo::ModelBench> model_bench(
         parser, "model_bench",
-        format_string("模型框架 (可选: opencv ); 默认: %s", model_bench_to_string(ArgsConfig.model_bench).c_str()),
+        format_string("模型框架, 可选: %s \n默认: %s", get_keys_string(allowed_models).c_str(),
+                      model_bench_to_string(ArgsConfig.model_bench).c_str()),
         {"model_bench"},
         allowed_models,         // 传入允许的选择列表
         ArgsConfig.model_bench  // 默认值
@@ -226,8 +241,11 @@ int32 main(int argc, char* argv[])
     images_bgr.push_back(image);
     // 保存结果的对象
     std::vector<std::vector<yolo::YoloObject>> det_results;
-    LOG_DEFAULT_INFO("运行模型");
-    run_time(images_bgr, det_results);
+    for (uint32 i = 0; i < 200; ++i)
+    {
+        LOG_DEFAULT_INFO("运行模型");
+        run_time(images_bgr, det_results);
+    }
 
     // 绘制边界框
     run_time.draw_result(images_bgr, det_results);
