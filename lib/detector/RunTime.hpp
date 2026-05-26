@@ -14,6 +14,7 @@
 #include "OpencvNet.hpp"
 #include "V5DetPostProcess.hpp"
 #include "V5PosePostProcess.hpp"
+#include "V8DetPostProcess.hpp"
 #include "YoloObject.h"
 #include "draw_result.hpp"
 #include "logging.hpp"
@@ -136,7 +137,13 @@ class RunTime
                         LOG_DEFAULT_INFO("Init V5DetPostProcess Success!");
                         break;  // case ModelType::yolov5
 
-                    // TODO: 后续实现 yolov8 / yolo11 / yolo26 / yolov9 / yolov10 / yolov12 等
+                    case ModelType::yolov8:
+                        // 初始化 V8DetPostProcess
+                        this->postProcess = std::make_shared<V8DetPostProcess>(this->config);
+                        LOG_DEFAULT_INFO("Init V8DetPostProcess Success!");
+                        break;  // case ModelType::yolov8
+
+                    // TODO: 后续实现 yolo11 / yolo26 / yolov9 / yolov10 / yolov12 等
                     default:
                         LOG_DEFAULT_ERROR("model type: %s not support;",
                                           model_type_to_string(this->config.model_type).c_str());
