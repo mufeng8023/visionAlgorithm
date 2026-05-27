@@ -219,17 +219,22 @@ class V5DetPostProcess : public BasePostProcess
                         // 最大分数对应的类别索引
                         uint32 max_class_idx = 0;
 
+                        // 定义一个临时指针指向当前类别的通道
+                        const float32* cur_class_ptr = class_ptr;
                         // 遍历所有类别, 找出最大分数和对应类别
                         for (uint32 class_idx = 0; class_idx < this->nc; ++class_idx)
                         {
                             // 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
-                            float32 class_score = class_ptr[grid_offset] * scale_output;
+                            float32 class_score = cur_class_ptr[grid_offset] * scale_output;
 
                             if (max_class_score < class_score)
                             {
                                 max_class_score = class_score;
                                 max_class_idx = class_idx;
                             }
+
+                            // 更新类别指针 (指向下一个类别通道)
+                            cur_class_ptr += grid_size;
                         }
 
                         // 最终置信度 = box_conf * max_class_score
