@@ -25,6 +25,15 @@ set(LOG_COMPILE_LEVEL 1 CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 
 # 将用户设置的日志级别通过 -D 宏传递给编译器
 add_compile_options(-Wall -g -std=c++17 -O2 -DLOG_COMPILE_LEVEL=${LOG_COMPILE_LEVEL})
 
+# 项目根路径宏定义, 可通过 cmake .. -DPROJECT_ROOT=[path] 指定
+# 若未指定, 则默认使用 CMAKE_SOURCE_DIR (即 CMakeLists.txt 所在目录)
+set(PROJECT_ROOT "" CACHE STRING "Project root path for runtime file access")
+if(PROJECT_ROOT)
+    add_compile_options(-DPROJECT_ROOT="${PROJECT_ROOT}")
+else()
+    add_compile_options(-DPROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+endif()
+
 # 添加头文件搜索路径:include_directories(./include)
 # include_directories(include_PATH)
 include_directories(${CMAKE_SOURCE_DIR}
