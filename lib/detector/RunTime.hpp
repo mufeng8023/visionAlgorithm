@@ -111,7 +111,11 @@ class RunTime
         {
             case ModelBench::OpenCV:
                 this->net = std::make_shared<OpencvNet>(this->config);
-                this->net->load_model(param, device);
+                if (!this->net->load_model(param, device))
+                {
+                    LOG_DEFAULT_ERROR("Init OpenCVNet Failed! load model:%s failed!", param.onnx_path.c_str());
+                    throw std::runtime_error("Init OpenCVNet Failed!");
+                }
 
                 LOG_DEFAULT_INFO("Init OpenCVNet Success!");
                 break;  // case ModelBench::OpenCV
