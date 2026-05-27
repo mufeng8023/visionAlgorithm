@@ -48,7 +48,6 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
     // 如果只有一个结果, 则直接返回
     if (count <= 1)
     {
-        LOG_DEFAULT_DEBUG("nms_ops: output.size = 1");
         return;
     }
 
