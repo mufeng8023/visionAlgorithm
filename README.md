@@ -41,8 +41,11 @@ visionAlgorithm/
 ├── onnx/                   # ONNX 模型文件
 ├── test_img/               # 测试图片
 ├── include/                # 公共头文件
-│   ├── args.hpp            # 命令行参数解析
+│   ├── args.hpp            # 命令行参数解析 (Taywee/args)
 │   ├── common.hpp          # 公共工具函数
+│   ├── json.h              # JSON 库头文件 (nlohmann/json)
+│   ├── nlohmann/           # JSON 库核心实现 (nlohmann/json)
+│   │   └── json.hpp        # JSON 单头文件库
 │   ├── ini_parser.hpp      # INI 配置文件解析器
 │   ├── logging.hpp         # 日志系统
 │   ├── myFilesystem.hpp    # 文件系统工具
@@ -149,6 +152,8 @@ make -j12
 
 本项目参考了以下开源仓库:
 
+- [args](https://github.com/Taywee/args) - C++ 命令行参数解析库
+- [json](https://github.com/nlohmann/json) - C++ JSON 解析库 (JSON for Modern C++)
 - [yolov5-face](https://github.com/deepcam-cn/yolov5-face.git) - YOLOv5 人脸检测与关键点检测
 - [ultralytics](https://github.com/ultralytics/ultralytics.git) - YOLOv8 / YOLO11 系列模型框架
 - [yolov5](https://github.com/ultralytics/yolov5.git) - YOLOv5 目标检测框架
