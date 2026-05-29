@@ -1,21 +1,21 @@
 /***
  * @Author       : gxs
- * @Date         : 2026-05-25 13:07:31
+ * @Date         : 2026-05-29 10:55:15
  * @LastEditors  : gxs
- * @LastEditTime : 2026-05-25 13:07:34
- * @FilePath     : /visionAlgorithm/lib/detector/V5PosePostProcess.hpp
+ * @LastEditTime : 2026-05-29 10:55:31
+ * @FilePath     : /visionAlgorithm/lib/detector/DetPostProcessV5.hpp
  * @Description  :
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
-#ifndef __V5POSEPOSTPROCESS__H__
-#define __V5POSEPOSTPROCESS__H__
+#ifndef __DETPOSTPROCESSV5__H__
+#define __DETPOSTPROCESSV5__H__
 
 #include "BasePostProcess.hpp"
 
 namespace yolo
 {
-class V5PosePostProcess : public BasePostProcess
+class DetPostProcessV5 : public BasePostProcess
 {
    private:
     // 推理的batch
@@ -39,12 +39,6 @@ class V5PosePostProcess : public BasePostProcess
     // 是否进行类别区分, false: 不同类别之间不会进行nms
     bool agnostic = false;
 
-    // kpt 相关信息
-    // 关键点个数
-    uint32 kpt_count = 0;
-    // 关键点维度 (2: x,y; 3: x,y,v)
-    uint32 kpt_dim = 0;
-
     // 每个位置anchor个数 anchors[0].size(), anchor-free默认为1;
     uint32 na = 0;
     // 每个位置输出的信息数 no
@@ -66,7 +60,7 @@ class V5PosePostProcess : public BasePostProcess
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
 
    public:
-    V5PosePostProcess(const DetectionNetConfig& config)
+    DetPostProcessV5(const DetectionNetConfig& config)
     {
         // 初始化各种参数
         this->batch_size = config.batch_size;
@@ -79,8 +73,6 @@ class V5PosePostProcess : public BasePostProcess
         this->iou_thrs = config.iou_thrs;
         this->max_det = config.max_det;
         this->agnostic = config.agnostic;
-        this->kpt_count = config.kpt_count;
-        this->kpt_dim = config.kpt_dim;
 
         this->na = config.na;
         this->no = config.no;
@@ -103,39 +95,39 @@ class V5PosePostProcess : public BasePostProcess
      * @description: 禁用拷贝构造函数, 防止对象被拷贝
      * @return
      */
-    V5PosePostProcess(const V5PosePostProcess& other) = delete;
+    DetPostProcessV5(const DetPostProcessV5& other) = delete;
 
     /***
      * @description: 禁用赋值操作符, 防止对象被赋值
      * @return
      */
-    V5PosePostProcess& operator=(const V5PosePostProcess& other) = delete;
+    DetPostProcessV5& operator=(const DetPostProcessV5& other) = delete;
 
     /***
      * @description: 禁用移动构造函数, 防止对象被移动
      * @return
      */
-    V5PosePostProcess(V5PosePostProcess&& other) = default;
+    DetPostProcessV5(DetPostProcessV5&& other) = default;
 
     /***
      * @description: 禁用移动赋值操作符, 防止对象被移动赋值
      * @return
      */
-    V5PosePostProcess& operator=(V5PosePostProcess&& other) = default;
+    DetPostProcessV5& operator=(DetPostProcessV5&& other) = default;
 
     /***
      * @description: 析构函数
      * @return
      */
-    ~V5PosePostProcess() = default;
+    ~DetPostProcessV5() = default;
 
     /***
-     * @description: 处理一层输出特征图 (姿态估计)
+     * @description: 处理一层输出特征图
      * @param output NetOutput& : 输出的网络特征图
      * @param result ObjectBuffer& : 解析出来的结果
      * @param scale_outputs float32 : 反量化系数
-     * @param net_out_h uint32 : 输出特征图的高
-     * @param net_out_w uint32 : 输出特征图的宽
+     * @param net_out_h uint32 : 输出特征图的宽
+     * @param net_out_w uint32 : 输出特征图的高
      * @param stride uint32 : 输出特征图的步长
      * @return
      */
@@ -147,15 +139,10 @@ class V5PosePostProcess : public BasePostProcess
                      const uint32 net_out_w,               //
                      const uint32 stride)
     {
-        // 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
+        // NOTE: 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
         const uint32 grid_size = net_out_h * net_out_w;
         // 计算类别的偏移量
         const uint32 class_offset = this->has_conf ? 5 : 4;
-        // 动态计算关键点在通道 C维度 上的绝对起始通道索引
-        // 关键点通道排在 BBox 和所有类别通道 nc 的后面
-        const uint32 kpt_start_channel = class_offset + this->nc;
-        // 相邻 kpt 之间 相同信息的步距偏移, xi 和 xi+1 的通道索引间隔为 kpt_step
-        const uint32 kpt_step = this->kpt_dim * grid_size;
 
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
@@ -193,17 +180,6 @@ class V5PosePostProcess : public BasePostProcess
                 // has_conf 为 true 时, class_offset = 4 + 1 = 5
                 // has_conf 为 false 时, class_offset = 4
                 const float32* class_ptr = base_output_ptr + class_offset * grid_size;
-                // kpt 信息首地址
-                // kpt_x 信息首地址
-                const float32* kpt_x_ptr = base_output_ptr + (kpt_start_channel + 0) * grid_size;
-                // kpt_y 信息首地址
-                const float32* kpt_y_ptr = base_output_ptr + (kpt_start_channel + 1) * grid_size;
-                // kpt_v 信息首地址
-                const float32* kpt_v_ptr = nullptr;
-                if (this->kpt_dim == 3)
-                {
-                    kpt_v_ptr = base_output_ptr + (kpt_start_channel + 2) * grid_size;
-                }
 
                 // 遍历每个位置 (特征图网格)
                 // 核心优化,将 grid_y 和 grid_x 调整至最内层
@@ -295,42 +271,6 @@ class V5PosePostProcess : public BasePostProcess
                         result[output_idx][4] = box_conf;
                         result[output_idx][5] = static_cast<float32>(max_class_idx);
 
-                        // 解码关键点
-                        // 定义一个临时指针指向当前类别的通道
-                        const float32* current_kpt_x_ptr = kpt_x_ptr;
-                        const float32* current_kpt_y_ptr = kpt_y_ptr;
-                        const float32* current_kpt_v_ptr = kpt_v_ptr;
-
-                        // 关键点在各通道是以 [kpt0_x, kpt0_y, kpt0_v, kpt1_x, ...] 顺序紧密交错排列
-                        for (uint32 kpt_idx = 0; kpt_idx < this->kpt_count; ++kpt_idx)
-                        {
-                            // 保存结果时候的偏移量
-                            uint32 res_kpt_offset = 6 + kpt_idx * this->kpt_dim;
-
-                            // x坐标
-                            float32 kpt_x = current_kpt_x_ptr[grid_offset] * scale_output;
-                            result[output_idx][res_kpt_offset + 0] = kpt_x * anchor_w + grid_x * stride;
-                            // y坐标
-                            float32 kpt_y = current_kpt_y_ptr[grid_offset] * scale_output;
-                            result[output_idx][res_kpt_offset + 1] = kpt_y * anchor_h + grid_y * stride;
-
-                            // 指针递增, 指向下一个关键点对应的通道首地址
-                            current_kpt_x_ptr += kpt_step;
-                            current_kpt_y_ptr += kpt_step;
-
-                            // 可选的 关键点可见性
-                            if (this->kpt_dim == 3)
-                            {
-                                // 可选的关键点可见性
-                                float32 kpt_v = current_kpt_v_ptr[grid_offset] * scale_output;
-                                result[output_idx][res_kpt_offset + 2] = kpt_v;
-
-                                // 指针递增, 指向下一个关键点对应的通道首地址
-                                current_kpt_v_ptr += kpt_step;
-                            }
-
-                        }  // for this->kpt_count
-
                     }  // for grid_x
 
                 }  // for grid_y
@@ -361,4 +301,4 @@ class V5PosePostProcess : public BasePostProcess
 };
 }  // namespace yolo
 
-#endif  // !__V5POSEPOSTPROCESS__H__
+#endif  // !__DETPOSTPROCESSV5__H__

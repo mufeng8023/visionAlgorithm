@@ -11,11 +11,11 @@
 #ifndef __RUNTIME__H__
 #define __RUNTIME__H__
 
+#include "DetPostProcessV5.hpp"
+#include "DetPostProcessV8.hpp"
 #include "OpencvNet.hpp"
-#include "V5DetPostProcess.hpp"
-#include "V5PosePostProcess.hpp"
-#include "V8DetPostProcess.hpp"
-#include "V8PosePostProcess.hpp"
+#include "PosePostProcessV5.hpp"
+#include "PosePostProcessV8.hpp"
 #include "YoloObject.h"
 #include "draw_result.hpp"
 #include "logging.hpp"
@@ -137,15 +137,15 @@ class RunTime
                 switch (this->config.model_type)
                 {
                     case ModelType::yolov5:
-                        // 初始化 V5DetPostProcess
-                        this->postProcess = std::make_shared<V5DetPostProcess>(this->config);
-                        LOG_DEFAULT_INFO("Init V5DetPostProcess Success!");
+                        // 初始化 DetPostProcessV5
+                        this->postProcess = std::make_shared<DetPostProcessV5>(this->config);
+                        LOG_DEFAULT_INFO("Init DetPostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
                     case ModelType::yolov8:
-                        // 初始化 V8DetPostProcess
-                        this->postProcess = std::make_shared<V8DetPostProcess>(this->config);
-                        LOG_DEFAULT_INFO("Init V8DetPostProcess Success!");
+                        // 初始化 DetPostProcessV8
+                        this->postProcess = std::make_shared<DetPostProcessV8>(this->config);
+                        LOG_DEFAULT_INFO("Init DetPostProcessV8 Success!");
                         break;  // case ModelType::yolov8
 
                     // TODO: 后续实现 yolo11 / yolo26 / yolov9 / yolov10 / yolov12 等
@@ -164,15 +164,15 @@ class RunTime
                 switch (this->config.model_type)
                 {
                     case ModelType::yolov5:
-                        // 初始化 V5PosePostProcess
-                        this->postProcess = std::make_shared<V5PosePostProcess>(this->config);
-                        LOG_DEFAULT_INFO("Init V5PosePostProcess Success!");
+                        // 初始化 PosePostProcessV5
+                        this->postProcess = std::make_shared<PosePostProcessV5>(this->config);
+                        LOG_DEFAULT_INFO("Init PosePostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
                     case ModelType::yolov8:
-                        // 初始化 V8PosePostProcess
-                        this->postProcess = std::make_shared<V8PosePostProcess>(this->config);
-                        LOG_DEFAULT_INFO("Init V8PosePostProcess Success!");
+                        // 初始化 PosePostProcessV8
+                        this->postProcess = std::make_shared<PosePostProcessV8>(this->config);
+                        LOG_DEFAULT_INFO("Init PosePostProcessV8 Success!");
                         break;  // case ModelType::yolov8
 
                     default:
@@ -253,7 +253,8 @@ class RunTime
      * @param det_results vector<vector<YoloObject>>& : 检测结果 已经映射到 images_bgr 图像中, 用完之后记得 clear
      * @return
      */
-    void operator()(const std::vector<cv::Mat>& images_bgr, std::vector<std::vector<YoloObject>>& det_results)
+    void operator()(const std::vector<cv::Mat>& images_bgr,  //
+                    std::vector<std::vector<YoloObject>>& det_results)
     {
         LOG_DEFAULT_INFO("RunTime Start!");
 
@@ -421,7 +422,8 @@ class RunTime
      * @param det_results std::vector<YoloObject>& : 检测结果
      * @return
      */
-    void draw_result(std::vector<cv::Mat>& images_bgr, const std::vector<std::vector<yolo::YoloObject>>& det_results)
+    void draw_result(std::vector<cv::Mat>& images_bgr,  //
+                     const std::vector<std::vector<yolo::YoloObject>>& det_results)
     {
         // 每张图单独绘制边界框
         for (uint32 i = 0; i < images_bgr.size(); ++i)

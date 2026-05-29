@@ -1,21 +1,21 @@
 /***
  * @Author       : gxs
- * @Date         : 2026-04-27 13:08:26
+ * @Date         : 2026-05-29 10:57:23
  * @LastEditors  : gxs
- * @LastEditTime : 2026-04-27 13:08:29
- * @FilePath     : /visionAlgorithm/lib/detector/V5DetPostProcess.hpp
+ * @LastEditTime : 2026-05-29 10:57:33
+ * @FilePath     : /visionAlgorithm/lib/detector/DetPostProcessV8.hpp
  * @Description  :
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
-#ifndef __V5DETPOSTPROCESS__H__
-#define __V5DETPOSTPROCESS__H__
+#ifndef __DETPOSTPROCESSV8__H__
+#define __DETPOSTPROCESSV8__H__
 
 #include "BasePostProcess.hpp"
 
 namespace yolo
 {
-class V5DetPostProcess : public BasePostProcess
+class DetPostProcessV8 : public BasePostProcess
 {
    private:
     // 推理的batch
@@ -27,7 +27,7 @@ class V5DetPostProcess : public BasePostProcess
     std::vector<float32> scale_outputs = {1.0, 1.0, 1.0};
 
     // 是否存在conf
-    bool has_conf = true;
+    bool has_conf = false;
     // 每个类别的置信度阈值
     std::vector<float32> conf_thrs = {0.1};
     // 最小的置信度阈值 conf_thrs 的最小值
@@ -60,12 +60,12 @@ class V5DetPostProcess : public BasePostProcess
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
 
    public:
-    V5DetPostProcess(const DetectionNetConfig& config)
+    DetPostProcessV8(const DetectionNetConfig& config)
     {
         // 初始化各种参数
         this->batch_size = config.batch_size;
         this->nc = config.nc;
-        this->has_conf = config.has_conf;
+        this->has_conf = false;  // NOTE: 默认没有置信度
 
         this->scale_outputs = config.scale_outputs;
         this->conf_thrs = config.conf_thrs;
@@ -78,7 +78,7 @@ class V5DetPostProcess : public BasePostProcess
         this->no = config.no;
         this->nl = config.nl;
         this->strides = config.strides;
-        this->anchors = config.anchors;
+        this->anchors.clear();  // NOTE: anchor-free默认为空
         this->net_out_h = config.net_out_h;
         this->net_out_w = config.net_out_w;
 
@@ -95,31 +95,31 @@ class V5DetPostProcess : public BasePostProcess
      * @description: 禁用拷贝构造函数, 防止对象被拷贝
      * @return
      */
-    V5DetPostProcess(const V5DetPostProcess& other) = delete;
+    DetPostProcessV8(const DetPostProcessV8& other) = delete;
 
     /***
      * @description: 禁用赋值操作符, 防止对象被赋值
      * @return
      */
-    V5DetPostProcess& operator=(const V5DetPostProcess& other) = delete;
+    DetPostProcessV8& operator=(const DetPostProcessV8& other) = delete;
 
     /***
      * @description: 禁用移动构造函数, 防止对象被移动
      * @return
      */
-    V5DetPostProcess(V5DetPostProcess&& other) = default;
+    DetPostProcessV8(DetPostProcessV8&& other) = default;
 
     /***
      * @description: 禁用移动赋值操作符, 防止对象被移动赋值
      * @return
      */
-    V5DetPostProcess& operator=(V5DetPostProcess&& other) = default;
+    DetPostProcessV8& operator=(DetPostProcessV8&& other) = default;
 
     /***
      * @description: 析构函数
      * @return
      */
-    ~V5DetPostProcess() = default;
+    ~DetPostProcessV8() = default;
 
     /***
      * @description: 处理一层输出特征图
@@ -141,8 +141,6 @@ class V5DetPostProcess : public BasePostProcess
     {
         // NOTE: 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
         const uint32 grid_size = net_out_h * net_out_w;
-        // 计算类别的偏移量
-        const uint32 class_offset = this->has_conf ? 5 : 4;
 
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
@@ -164,22 +162,14 @@ class V5DetPostProcess : public BasePostProcess
                 // 获取当 batch 的第 anchor_idx 的首地址, 后续通过 base_output_ptr[idx] 访问数据
                 const float32* base_output_ptr = output.data() + base_ch_idx * grid_size;
 
-                // 当前组的 anchor
-                const uint32& anchor_w = anchors[anchor_idx * 2];
-                const uint32& anchor_h = anchors[anchor_idx * 2 + 1];
-
                 // 核心优化: 在进入循环之前, 先将 x / y / w / h / conf / nc 的各自通道的 [绝对首地址] 指针
                 // 彻底消除了原代码最内层中类似 [feature_addr + k * channel_stride] 的复杂乘法寻址
-                const float32* x_ptr = base_output_ptr + 0 * grid_size;
-                const float32* y_ptr = base_output_ptr + 1 * grid_size;
-                const float32* w_ptr = base_output_ptr + 2 * grid_size;
-                const float32* h_ptr = base_output_ptr + 3 * grid_size;
-                // 要注意, conf_ptr 是可选的, 如果没有置信度通道, 则为 nullptr
-                const float32* conf_ptr = this->has_conf ? base_output_ptr + 4 * grid_size : nullptr;
+                const float32* x1_ptr = base_output_ptr + 0 * grid_size;
+                const float32* y1_ptr = base_output_ptr + 1 * grid_size;
+                const float32* x2_ptr = base_output_ptr + 2 * grid_size;
+                const float32* y2_ptr = base_output_ptr + 3 * grid_size;
                 // 类别首地址, 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
-                // has_conf 为 true 时, class_offset = 4 + 1 = 5
-                // has_conf 为 false 时, class_offset = 4
-                const float32* class_ptr = base_output_ptr + class_offset * grid_size;
+                const float32* class_ptr = base_output_ptr + 4 * grid_size;
 
                 // 遍历每个位置 (特征图网格)
                 // 核心优化,将 grid_y 和 grid_x 调整至最内层
@@ -200,18 +190,6 @@ class V5DetPostProcess : public BasePostProcess
                         {
                             // 超过最大检测数, 直接退出
                             break;
-                        }
-
-                        // 获取box置信度 (如果有conf通道的话)
-                        float32 box_conf = 1.0f;
-                        if (this->has_conf)
-                        {
-                            box_conf = conf_ptr[grid_offset] * scale_output;
-                        }
-                        // 置信度小于阈值, 跳过
-                        if (box_conf < this->min_conf)
-                        {
-                            continue;
                         }
 
                         // 最大类别分数
@@ -237,11 +215,8 @@ class V5DetPostProcess : public BasePostProcess
                             cur_class_ptr += grid_size;
                         }
 
-                        // 最终置信度 = box_conf * max_class_score
-                        box_conf *= max_class_score;
-
                         // 根据各类别的阈值进行过滤
-                        if (box_conf < this->conf_thrs[max_class_idx])
+                        if (max_class_score < this->conf_thrs[max_class_idx])
                         {
                             continue;
                         }
@@ -250,25 +225,36 @@ class V5DetPostProcess : public BasePostProcess
                         result.expand_obj();
                         result.set_valid(output_idx, true);
 
-                        // 解码边界框 (x, y, w, h)
-                        // x坐标: (tx * 2 - 0.5 + cx) * stride
-                        float32 dx = x_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][0] = (dx + grid_x - 0.5f) * stride;
+                        // 解码边界框 (x1, y1, x2, y2) -> (x, y, w, h)
+                        float32 dx1 = x1_ptr[grid_offset] * scale_output;
+                        float32 dy1 = y1_ptr[grid_offset] * scale_output;
+                        float32 dx2 = x2_ptr[grid_offset] * scale_output;
+                        float32 dy2 = y2_ptr[grid_offset] * scale_output;
 
-                        // y坐标
-                        float32 dy = y_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][1] = (dy + grid_y - 0.5f) * stride;
+                        // x1坐标: (grid_x + 0.5 - value) * stride
+                        // x1 = (grid_x + 0.5f - dx1) * stride;
+                        // x = (x1 + x2) / 2 = (grid_x + 0.5f) * stride + (dx2 - dx1) * 0.5 * stride
+                        result[output_idx][0] = (grid_x + 0.5f) * stride + (dx2 - dx1) * 0.5f * stride;  // 中心点x
 
-                        // w宽度: pw * (2 * tx)^2; 使用乘法代替 pow
-                        float32 dw = w_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][2] = dw * dw * anchor_w;
+                        // y1坐标: (grid_y + 0.5 - value) * stride
+                        // y1 = (grid_y + 0.5f - dy1) * stride;
+                        // y = (y1 + y2) / 2 = (grid_y + 0.5f) * stride + (dy2 - dy1) * 0.5 * stride
+                        result[output_idx][1] = (grid_y + 0.5f) * stride + (dy2 - dy1) * 0.5f * stride;  // 中心点y
 
-                        // h高度: ph * (2 * ty)^2; 使用乘法代替 pow
-                        float32 dh = h_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][3] = dh * dh * anchor_h;
+                        // x2坐标: (grid_x + 0.5 + value) * stride
+                        // x2 = (grid_x + 0.5f + dx2) * stride;
+                        // width = x2 - x1 = (grid_x + 0.5f + dx2) * stride - (grid_x + 0.5f - dx1) * stride
+                        // width = (dx2 + dx1) * stride
+                        result[output_idx][2] = (dx2 + dx1) * stride;  // width
+
+                        // y2坐标: (grid_y + 0.5 + value) * stride
+                        // y2 = (grid_y + 0.5f + dy2) * stride;
+                        // hight = y2 - y1 = (grid_y + 0.5f + dy2) * stride - (grid_y + 0.5f - dy1) * stride
+                        // hight = (dy2 + dy1) * stride
+                        result[output_idx][3] = (dy2 + dy1) * stride;  // hight
 
                         // 存储最终置信度和类别索引
-                        result[output_idx][4] = box_conf;
+                        result[output_idx][4] = max_class_score;
                         result[output_idx][5] = static_cast<float32>(max_class_idx);
 
                     }  // for grid_x
@@ -301,4 +287,4 @@ class V5DetPostProcess : public BasePostProcess
 };
 }  // namespace yolo
 
-#endif  // !__V5DETPOSTPROCESS__H__
+#endif  // !__DETPOSTPROCESSV8__H__

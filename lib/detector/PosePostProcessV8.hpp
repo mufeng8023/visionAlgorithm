@@ -1,21 +1,21 @@
 /***
  * @Author       : gxs
- * @Date         : 2026-05-27 00:26:16
+ * @Date         : 2026-05-29 10:58:03
  * @LastEditors  : gxs
- * @LastEditTime : 2026-05-27 00:26:16
- * @FilePath     : /visionAlgorithm/lib/detector/V8PosePostProcess.hpp
+ * @LastEditTime : 2026-05-29 10:58:17
+ * @FilePath     : /visionAlgorithm/lib/detector/PosePostProcessV8.hpp
  * @Description  :
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
-#ifndef __V8POSEPOSTPROCESS__H__
-#define __V8POSEPOSTPROCESS__H__
+#ifndef __POSEPOSTPROCESSV8__H__
+#define __POSEPOSTPROCESSV8__H__
 
 #include "BasePostProcess.hpp"
 
 namespace yolo
 {
-class V8PosePostProcess : public BasePostProcess
+class PosePostProcessV8 : public BasePostProcess
 {
    private:
     // 推理的batch
@@ -66,7 +66,7 @@ class V8PosePostProcess : public BasePostProcess
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
 
    public:
-    V8PosePostProcess(const DetectionNetConfig& config)
+    PosePostProcessV8(const DetectionNetConfig& config)
     {
         // 初始化各种参数
         this->batch_size = config.batch_size;
@@ -103,31 +103,31 @@ class V8PosePostProcess : public BasePostProcess
      * @description: 禁用拷贝构造函数, 防止对象被拷贝
      * @return
      */
-    V8PosePostProcess(const V8PosePostProcess& other) = delete;
+    PosePostProcessV8(const PosePostProcessV8& other) = delete;
 
     /***
      * @description: 禁用赋值操作符, 防止对象被赋值
      * @return
      */
-    V8PosePostProcess& operator=(const V8PosePostProcess& other) = delete;
+    PosePostProcessV8& operator=(const PosePostProcessV8& other) = delete;
 
     /***
      * @description: 禁用移动构造函数, 防止对象被移动
      * @return
      */
-    V8PosePostProcess(V8PosePostProcess&& other) = default;
+    PosePostProcessV8(PosePostProcessV8&& other) = default;
 
     /***
      * @description: 禁用移动赋值操作符, 防止对象被移动赋值
      * @return
      */
-    V8PosePostProcess& operator=(V8PosePostProcess&& other) = default;
+    PosePostProcessV8& operator=(PosePostProcessV8&& other) = default;
 
     /***
      * @description: 析构函数
      * @return
      */
-    ~V8PosePostProcess() = default;
+    ~PosePostProcessV8() = default;
 
     /***
      * @description: 处理一层输出特征图
@@ -346,4 +346,4 @@ class V8PosePostProcess : public BasePostProcess
 };
 }  // namespace yolo
 
-#endif  // !__V8POSEPOSTPROCESS__H__
+#endif  // !__POSEPOSTPROCESSV8__H__
