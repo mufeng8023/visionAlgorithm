@@ -3,6 +3,11 @@
 <!-- vscode-markdown-toc -->
 - [visionAlgorithm](#visionalgorithm)
   - [项目简介](#项目简介)
+  - [支持的模型](#支持的模型)
+    - [推理后端](#推理后端)
+    - [检测任务 (detection)](#检测任务-detection)
+    - [姿态估计任务 (pose)](#姿态估计任务-pose)
+    - [其他任务类型](#其他任务类型)
   - [支持的功能](#支持的功能)
   - [项目结构](#项目结构)
   - [构建与运行](#构建与运行)
@@ -19,11 +24,55 @@
 
 visionAlgorithm 是一个基于 C++17 的轻量级 YOLO 系列模型推理框架, 支持通过 OpenCV DNN 后端加载 ONNX 模型, 完成目标检测与姿态估计任务。项目采用模块化设计, 将模型加载、推理、后处理、结果可视化等环节解耦, 便于扩展和维护。
 
+## 支持的模型
+
+### 推理后端
+
+| 后端   | 支持状态 | 说明                      |
+| ------ | -------- | ------------------------- |
+| OpenCV | 已支持   | 基于 OpenCV DNN 加载 ONNX |
+| 其他   | 未支持   | 代码预留 TODO, 待扩展     |
+
+### 检测任务 (detection)
+
+| 模型    | 后处理                         | 支持状态 |
+| ------- | ------------------------------ | -------- |
+| yolov5  | DetPostProcessV5 (anchor-base) | 已支持   |
+| yolov3u | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov5u | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov6u | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov7u | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov8  | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov9  | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov10 | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolo11  | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolo12  | DetPostProcessV8 (anchor-free) | 已支持   |
+| yolov4  | -                              | 不支持   |
+| yolo26  | -                              | 不支持   |
+
+### 姿态估计任务 (pose)
+
+| 模型     | 后处理                          | 支持状态 |
+| -------- | ------------------------------- | -------- |
+| yolov5   | PosePostProcessV5 (anchor-base) | 已支持   |
+| yolov5u  | PosePostProcessV8 (anchor-free) | 已支持   |
+| yolov8   | PosePostProcessV8 (anchor-free) | 已支持   |
+| yolo11   | PosePostProcessV8 (anchor-free) | 已支持   |
+| 其余模型 | -                               | 不支持   |
+
+### 其他任务类型
+
+| 任务           | 支持状态 |
+| -------------- | -------- |
+| classification | 不支持   |
+| segmentation   | 不支持   |
+| obb            | 不支持   |
+
+> 完整支持矩阵请参见 [RunTime 运行时调度器](doc/RunTime.md)。
+
 ## 支持的功能
 
 - **模型推理**: 基于 OpenCV DNN 加载 ONNX 模型, 支持 CPU / CUDA GPU 推理
-- **目标检测**: 支持 YOLOv5 (anchor-base) 和 YOLOv8 (anchor-free) 检测模型
-- **姿态估计**: 支持 YOLOv5 和 YOLOv8 姿态估计模型 (关键点检测)
 - **后处理**: 内置 NMS (非极大值抑制), 支持类别感知 / 非感知模式
 - **结果可视化**: 自动绘制检测框、类别标签、置信度分数以及姿态关键点骨架
 - **日志系统**: 基于 INI 配置文件的多日志器管理, 支持分级日志输出
