@@ -2,8 +2,11 @@
 
 <!-- vscode-markdown-toc -->
 - [YoloObject 检测结果数据结构](#yoloobject-检测结果数据结构)
-  - [概述](#)
-  - [结构体定义](#)
+  - [概述](#概述)
+  - [结构体定义](#结构体定义)
+    - [`Box` (边界框)](#box-边界框)
+    - [`KeyPoint` (关键点)](#keypoint-关键点)
+    - [`YoloObject` (检测结果)](#yoloobject-检测结果)
 
 <!-- vscode-markdown-toc -->
 
@@ -43,10 +46,15 @@ typedef struct {
 
 ```cpp
 typedef struct {
+    // === 共有属性 ===
     TaskType type = TaskType::detection;  // 任务类型
     Box box;                              // 检测框 (所有任务共有)
+
+    // === 动态数据: 未 resize 前, 不占用任何堆内存 ===
     std::vector<KeyPoint> kpts;           // 关键点 (Pose 任务)
     std::vector<uint8> mask;              // 分割掩码 (Seg 任务)
+
+    // === 标量数据: 直接平铺, 消除内存覆盖隐患 ===
     float32 angle = 0.0f;                 // 旋转角度 (OBB 任务)
     uint32 mask_width = 0;                // 分割掩码宽度
     uint32 mask_height = 0;               // 分割掩码高度

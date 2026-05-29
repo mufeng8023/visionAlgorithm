@@ -1,7 +1,7 @@
-# V8PosePostProcess YOLOv8 姿态后处理
+# PosePostProcessV8 YOLOv8 姿态后处理
 
 <!-- vscode-markdown-toc -->
-- [V8PosePostProcess YOLOv8 姿态后处理](#v8posepostprocess-yolov8-姿态后处理)
+- [PosePostProcessV8 YOLOv8 姿态后处理](#posepostprocessv8-yolov8-姿态后处理)
   - [概述](#概述)
   - [类定义](#类定义)
   - [核心流程](#核心流程)
@@ -13,17 +13,17 @@
 
 ## 概述
 
-`V8PosePostProcess` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv8 系列 anchor-free 姿态估计模型的输出解码。在检测框解码的基础上, 额外解析关键点 (keypoint) 信息。
+`PosePostProcessV8` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv8 系列 anchor-free 姿态估计模型的输出解码。在检测框解码的基础上, 额外解析关键点 (keypoint) 信息。
 
 ## 类定义
 
-**文件**: `lib/detector/V8PosePostProcess.hpp`  
+**文件**: `lib/detector/PosePostProcessV8.hpp`  
 **命名空间**: `yolo`
 
 ```cpp
-class V8PosePostProcess : public BasePostProcess {
+class PosePostProcessV8 : public BasePostProcess {
 private:
-    // ... 检测相关参数 (同 V8DetPostProcess)
+    // ... 检测相关参数 (同 DetPostProcessV8)
     uint32 kpt_count;             // 关键点个数
     uint32 kpt_dim;               // 关键点维度 (2: x,y; 3: x,y,v)
     // ...
@@ -36,7 +36,7 @@ private:
 
 在 YOLOv8 检测解码的基础上, 额外解析关键点信息:
 
-1. 执行检测框解码 (同 V8DetPostProcess)
+1. 执行检测框解码 (同 DetPostProcessV8)
 2. 从特征图中提取每个关键点的 x, y 坐标
 3. 如果 `kpt_dim == 3`, 额外提取可见性分数 v
 4. 关键点坐标解码到特征图尺度

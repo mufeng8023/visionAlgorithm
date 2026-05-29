@@ -2,10 +2,10 @@
 
 <!-- vscode-markdown-toc -->
 - [ObjectBuffer 检测结果缓冲区](#objectbuffer-检测结果缓冲区)
-  - [概述](#)
-  - [类定义](#)
-  - [核心接口](#)
-  - [数据布局](#)
+  - [概述](#概述)
+  - [类定义](#类定义)
+  - [核心接口](#核心接口)
+  - [数据布局](#数据布局)
 
 <!-- vscode-markdown-toc -->
 
@@ -25,7 +25,7 @@ private:
     uint32 stride;                  // 每个目标的步长 (base_box_len + extra_dim)
     uint32 extra_dim;               // 额外信息维度
     std::vector<float32> buffer;    // 数据缓冲区
-    std::vector<ObjStatus> valid_mask; // 有效性标记
+    std::vector<ObjStatus> valid_mask; // 有效性标记 (uint8 枚举)
 };
 ```
 
@@ -34,6 +34,7 @@ private:
 | 方法                                     | 说明                            |
 | ---------------------------------------- | ------------------------------- |
 | `ObjectBuffer(max_obj_count, extra_dim)` | 构造函数, 预分配缓冲区          |
+| `ObjectBuffer()`                         | 默认构造函数, 创建空对象        |
 | `get_max_count()`                        | 获取最大检测目标数              |
 | `get_stride()`                           | 获取每个目标的步长              |
 | `get_obj_count()`                        | 获取当前目标总数 (有效 + 无效)  |

@@ -1,7 +1,7 @@
-# V5DetPostProcess YOLOv5 检测后处理
+# DetPostProcessV5 YOLOv5 检测后处理
 
 <!-- vscode-markdown-toc -->
-- [V5DetPostProcess YOLOv5 检测后处理](#v5detpostprocess-yolov5-检测后处理)
+- [DetPostProcessV5 YOLOv5 检测后处理](#detpostprocessv5-yolov5-检测后处理)
   - [概述](#概述)
   - [类定义](#类定义)
   - [核心流程](#核心流程)
@@ -13,15 +13,15 @@
 
 ## 概述
 
-`V5DetPostProcess` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv5 系列 anchor-base 检测模型的输出解码。支持可选的置信度通道 (如 YOLOv5-Face)。
+`DetPostProcessV5` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv5 系列 anchor-base 检测模型的输出解码。支持可选的置信度通道 (如 YOLOv5-Face)。
 
 ## 类定义
 
-**文件**: `lib/detector/V5DetPostProcess.hpp`  
+**文件**: `lib/detector/DetPostProcessV5.hpp`  
 **命名空间**: `yolo`
 
 ```cpp
-class V5DetPostProcess : public BasePostProcess {
+class DetPostProcessV5 : public BasePostProcess {
 private:
     uint32 batch_size;
     uint32 nc;                    // 类别数量

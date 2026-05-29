@@ -22,12 +22,12 @@
 
 ```cpp
 enum class ModelType : uint8 {
-    yolov3 = 0,
-    yolov4,
+    yolov4 = 0,
     yolov5,   // anchor-base
-    yolov6,
-    yolov7,
-    yolov5u,  // anchor-free (ultralytics)
+    yolov3u,  // anchor-free, u 指 ultralytics
+    yolov5u,  // anchor-free, u 指 ultralytics
+    yolov6u,  // anchor-free, u 指 ultralytics
+    yolov7u,  // anchor-free, u 指 ultralytics
     yolov8,
     yolov9,
     yolov10,
@@ -88,9 +88,11 @@ typedef struct {
 
 ## 工具函数
 
-| 函数                                  | 说明                |
-| ------------------------------------- | ------------------- |
-| `model_type_to_string(ModelType)`     | 枚举转字符串 (O(1)) |
-| `model_type_from_string(string_view)` | 字符串转枚举        |
-| `task_type_to_string(TaskType)`       | 枚举转字符串 (O(1)) |
-| `task_type_from_string(string_view)`  | 字符串转枚举        |
+| 函数                              | 说明                    |
+| --------------------------------- | ----------------------- |
+| `model_type_to_string(ModelType)` | 枚举转字符串 (O(log n)) |
+| `model_type_from_string(string)`  | 字符串转枚举            |
+| `task_type_to_string(TaskType)`   | 枚举转字符串 (O(log n)) |
+| `task_type_from_string(string)`   | 字符串转枚举            |
+
+> 注: `model_type_to_string` 和 `task_type_to_string` 基于 `std::map` 实现, 时间复杂度为 O(log n); 字符串转枚举通过遍历实现, 时间复杂度为 O(n)。

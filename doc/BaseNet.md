@@ -3,6 +3,7 @@
 <!-- vscode-markdown-toc -->
 - [BaseNet 网络推理基类](#basenet-网络推理基类)
   - [概述](#概述)
+  - [ModelPathParams 结构体](#modelpathparams-结构体)
   - [类定义](#类定义)
   - [纯虚接口](#纯虚接口)
     - [`load_model`](#load_model)
@@ -15,6 +16,14 @@
 
 `BaseNet` 是所有网络推理实现的抽象基类, 定义了模型加载和推理的标准接口。采用策略模式, 允许在不修改上层代码的情况下切换不同的推理后端。
 
+## ModelPathParams 结构体
+
+```cpp
+typedef struct {
+    std::string onnx_path = "";  // ONNX 模型文件路径
+} ModelPathParams;
+```
+
 ## 类定义
 
 **文件**: `lib/detector/BaseNet.hpp`  
@@ -23,7 +32,7 @@
 ```cpp
 class BaseNet {
 public:
-    virtual ~BaseNet() = default;
+    ~BaseNet() = default;  // 非虚析构函数, 禁止通过基类指针删除派生类对象
 
     // 加载模型
     virtual bool load_model(const ModelPathParams& param, int32 device = -1) = 0;

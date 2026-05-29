@@ -72,7 +72,7 @@ void non_max_suppression(std::vector<ObjectBuffer>& outputs,
 
 | 类名                                      | 说明                          |
 | ----------------------------------------- | ----------------------------- |
-| [V5DetPostProcess](V5DetPostProcess.md)   | YOLOv5 anchor-base 检测后处理 |
-| [V8DetPostProcess](V8DetPostProcess.md)   | YOLOv8 anchor-free 检测后处理 |
-| [V5PosePostProcess](V5PosePostProcess.md) | YOLOv5 姿态估计后处理         |
-| [V8PosePostProcess](V8PosePostProcess.md) | YOLOv8 姿态估计后处理         |
+| [DetPostProcessV5](DetPostProcessV5.md)   | YOLOv5 anchor-base 检测后处理 |
+| [DetPostProcessV8](DetPostProcessV8.md)   | YOLOv8 anchor-free 检测后处理 |
+| [PosePostProcessV5](PosePostProcessV5.md) | YOLOv5 姿态估计后处理         |
+| [PosePostProcessV8](PosePostProcessV8.md) | YOLOv8 姿态估计后处理         |

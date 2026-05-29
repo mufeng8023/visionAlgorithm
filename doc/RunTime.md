@@ -3,6 +3,7 @@
 <!-- vscode-markdown-toc -->
 - [RunTime 运行时调度器](#runtime-运行时调度器)
   - [概述](#概述)
+  - [ModelBench 枚举](#modelbench-枚举)
   - [类定义](#类定义)
   - [构造函数](#构造函数)
   - [核心接口](#核心接口)
@@ -16,6 +17,17 @@
 
 `RunTime` 是项目的核心调度类, 负责串联整个推理流程: 加载配置 -> 初始化模型 -> 初始化后处理 -> 图像预处理 -> 模型推理 -> 后处理 -> 坐标还原 -> 结果可视化。它封装了所有内部细节, 对外提供简洁的调用接口。
 
+## ModelBench 枚举
+
+```cpp
+enum class ModelBench : uint8 {
+    OpenCV = 0,
+    count,
+};
+```
+
+当前仅支持 `OpenCV` 推理后端, 后续可扩展其他框架。枚举转字符串使用 `model_bench_to_string()` (O(1) 性能, 基于 `std::array`), 字符串转枚举使用 `model_bench_from_string()` (O(n) 遍历)。
+
 ## 类定义
 
 **文件**: `lib/detector/RunTime.hpp`  
@@ -28,6 +40,7 @@ class RunTime {
     std::shared_ptr<BaseNet> net;           // 网络推理实例 (多态)
     std::shared_ptr<BasePostProcess> postProcess; // 后处理实例 (多态)
     std::vector<cv::Mat> imgs_resized;      // 预处理后的图像缓存
+    std::vector<std::tuple<float32, int32, int32>> resize_info; // 缩放信息 (ratio, dw, dh)
     std::vector<NetOutput> net_outputs;     // 网络输出缓存
     std::vector<ObjectBuffer> results;      // 后处理结果缓存
 };
@@ -46,7 +59,11 @@ RunTime(const std::string& config_path,
 
 1. 解析 INI 配置文件, 填充 `DetectionNetConfig` 结构体
 2. 根据 `ModelBench` 枚举创建对应的网络推理实例 (当前仅支持 `OpenCV`)
-3. 根据 `TaskType` 和 `ModelType` 创建对应的后处理实例
+3. 根据 `TaskType` 和 `ModelType` 创建对应的后处理实例:
+   - `detection` + `yolov5` -> `DetPostProcessV5`
+   - `detection` + `yolov8` -> `DetPostProcessV8`
+   - `pose` + `yolov5` -> `PosePostProcessV5`
+   - `pose` + `yolov8` -> `PosePostProcessV8`
 4. 预分配图像预处理缓存、网络输出缓存、检测结果缓存
 
 ## 核心接口
@@ -60,7 +77,7 @@ void operator()(const std::vector<cv::Mat>& images_bgr,
 
 执行完整的推理流水线:
 
-1. **图像预处理**: 等比例缩放 + 填充至模型输入尺寸
+1. **图像预处理**: 等比例缩放 + 填充至模型输入尺寸, 记录缩放信息 (ratio, dw, dh)
 2. **模型推理**: 调用 `BaseNet::run()` 获取特征图
 3. **后处理**: 调用 `BasePostProcess::run()` 解析检测结果
 4. **坐标还原**: 将检测框和关键点坐标映射回原始图像尺寸

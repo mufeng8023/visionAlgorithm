@@ -26,10 +26,18 @@ class OpencvNet : public BaseNet {
 private:
     cv::dnn::Net net;           // OpenCV DNN 网络对象
     uint32 batch_size;          // Batch 大小
+    uint32 nc;                  // 类别数量
     uint32 input_width;         // 输入宽度
     uint32 input_height;        // 输入高度
     uint32 input_channels;      // 输入通道数
     std::vector<uint32> strides;// 各输出层步长
+    std::vector<std::vector<float32>> anchors; // anchor 信息
+    uint32 na;                  // 每个位置 anchor 数
+    uint32 no;                  // 每个位置输出信息数
+    uint32 nl;                  // 输出层数
+    std::vector<uint32> net_out_h;  // 各输出层高度
+    std::vector<uint32> output_w;   // 各输出层宽度
+    std::vector<uint32> output_len; // 各输出层数据元素总数
     cv::Mat inputBatch;         // 预处理后的输入 Blob
 };
 ```

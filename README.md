@@ -43,9 +43,6 @@ visionAlgorithm/
 ├── include/                # 公共头文件
 │   ├── args.hpp            # 命令行参数解析 (Taywee/args)
 │   ├── common.hpp          # 公共工具函数
-│   ├── json.h              # JSON 库头文件 (nlohmann/json)
-│   ├── nlohmann/           # JSON 库核心实现 (nlohmann/json)
-│   │   └── json.hpp        # JSON 单头文件库
 │   ├── ini_parser.hpp      # INI 配置文件解析器
 │   ├── logging.hpp         # 日志系统
 │   ├── myFilesystem.hpp    # 文件系统工具
@@ -58,16 +55,19 @@ visionAlgorithm/
 │   ├── BaseNet.hpp         # 网络推理基类
 │   ├── OpencvNet.hpp       # OpenCV DNN 推理实现
 │   ├── BasePostProcess.hpp # 后处理基类 & NMS
-│   ├── V5DetPostProcess.hpp# YOLOv5 检测后处理
-│   ├── V8DetPostProcess.hpp# YOLOv8 检测后处理
-│   ├── V5PosePostProcess.hpp# YOLOv5 姿态后处理
-│   ├── V8PosePostProcess.hpp# YOLOv8 姿态后处理
+│   ├── DetPostProcessV5.hpp# YOLOv5 检测后处理
+│   ├── DetPostProcessV8.hpp# YOLOv8 检测后处理
+│   ├── PosePostProcessV5.hpp# YOLOv5 姿态后处理
+│   ├── PosePostProcessV8.hpp# YOLOv8 姿态后处理
 │   ├── NetConfig.hpp       # 模型配置数据结构
 │   ├── NetOutput.hpp       # 网络输出特征图容器
 │   ├── ObjectBuffer.hpp    # 检测结果缓冲区
 │   ├── YoloObject.h        # 检测结果数据结构
 │   ├── draw_result.hpp     # 结果可视化绘制
 │   └── utils.hpp           # 工具函数 & 配置解析
+├── scripts/                # Python 辅助脚本
+│   ├── pt2onnx.py          # PyTorch 模型转 ONNX
+│   └── run_onnx_img.py     # ONNX 模型推理脚本
 └── doc/                    # 详细文档目录
 ```
 
@@ -137,10 +137,10 @@ make -j12
 - [BaseNet 网络推理基类](doc/BaseNet.md) - 网络推理抽象接口
 - [OpencvNet OpenCV DNN 推理实现](doc/OpencvNet.md) - 基于 OpenCV DNN 的模型加载与推理
 - [BasePostProcess 后处理基类](doc/BasePostProcess.md) - 后处理抽象接口与 NMS 实现
-- [V5DetPostProcess YOLOv5 检测后处理](doc/V5DetPostProcess.md) - YOLOv5 anchor-base 检测解码
-- [V8DetPostProcess YOLOv8 检测后处理](doc/V8DetPostProcess.md) - YOLOv8 anchor-free 检测解码
-- [V5PosePostProcess YOLOv5 姿态后处理](doc/V5PosePostProcess.md) - YOLOv5 姿态估计关键点解码
-- [V8PosePostProcess YOLOv8 姿态后处理](doc/V8PosePostProcess.md) - YOLOv8 姿态估计关键点解码
+- [DetPostProcessV5 YOLOv5 检测后处理](doc/DetPostProcessV5.md) - YOLOv5 anchor-base 检测解码
+- [DetPostProcessV8 YOLOv8 检测后处理](doc/DetPostProcessV8.md) - YOLOv8 anchor-free 检测解码
+- [PosePostProcessV5 YOLOv5 姿态后处理](doc/PosePostProcessV5.md) - YOLOv5 姿态估计关键点解码
+- [PosePostProcessV8 YOLOv8 姿态后处理](doc/PosePostProcessV8.md) - YOLOv8 姿态估计关键点解码
 - [NetConfig 模型配置](doc/NetConfig.md) - 模型配置数据结构与枚举定义
 - [NetOutput 网络输出容器](doc/NetOutput.md) - 网络输出特征图存储
 - [ObjectBuffer 检测结果缓冲区](doc/ObjectBuffer.md) - 检测结果高效存储与管理

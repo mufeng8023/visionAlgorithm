@@ -1,7 +1,7 @@
-# V8DetPostProcess YOLOv8 检测后处理
+# DetPostProcessV8 YOLOv8 检测后处理
 
 <!-- vscode-markdown-toc -->
-- [V8DetPostProcess YOLOv8 检测后处理](#v8detpostprocess-yolov8-检测后处理)
+- [DetPostProcessV8 YOLOv8 检测后处理](#detpostprocessv8-yolov8-检测后处理)
   - [概述](#概述)
   - [类定义](#类定义)
   - [核心流程](#核心流程)
@@ -13,15 +13,15 @@
 
 ## 概述
 
-`V8DetPostProcess` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv8 系列 anchor-free 检测模型的输出解码。与 YOLOv5 不同, YOLOv8 直接预测 (x1, y1, x2, y2) 形式的边界框偏移量, 且没有独立的置信度通道。
+`DetPostProcessV8` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv8 系列 anchor-free 检测模型的输出解码。与 YOLOv5 不同, YOLOv8 直接预测 (x1, y1, x2, y2) 形式的边界框偏移量, 且没有独立的置信度通道。
 
 ## 类定义
 
-**文件**: `lib/detector/V8DetPostProcess.hpp`  
+**文件**: `lib/detector/DetPostProcessV8.hpp`  
 **命名空间**: `yolo`
 
 ```cpp
-class V8DetPostProcess : public BasePostProcess {
+class DetPostProcessV8 : public BasePostProcess {
 private:
     uint32 batch_size;
     uint32 nc;                    // 类别数量
