@@ -11,7 +11,7 @@
 #ifndef __NETCONFIG__H__
 #define __NETCONFIG__H__
 
-#include <array>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -22,12 +22,12 @@ namespace yolo
 
 enum class ModelType : uint8
 {
-    yolov3 = 0,  //
-    yolov4,
-    yolov5,  // anchor-base
-    yolov6,
-    yolov7,
+    yolov4 = 0,
+    yolov5,   // anchor-base
+    yolov3u,  // anchor-free, u是指ultralytics
     yolov5u,  // anchor-free, u是指ultralytics
+    yolov6u,  // anchor-free, u是指ultralytics
+    yolov7u,  // anchor-free, u是指ultralytics
     yolov8,
     yolov9,
     yolov10,
@@ -111,77 +111,134 @@ typedef struct
 
 } DetectionNetConfig;
 
-// 定义映射数组
-constexpr std::array<std::string_view, static_cast<size_t>(ModelType::count)> ModelTypeNames = {
-    "yolov3", "yolov4", "yolov5",  "yolov6", "yolov7", "yolov5u",
-    "yolov8", "yolov9", "yolov10", "yolo11", "yolo12", "yolo26"};
-
-// 定义映射数组
-constexpr std::array<std::string_view, static_cast<size_t>(TaskType::count)> TaskTypeNames = {
-    "classification", "detection", "segmentation", "pose", "obb"};
+/***
+ * @description: 获取 ModelType 到字符串的映射表 (单例, 延迟初始化)
+ * 使用 map 而非 array, 避免枚举值与数组索引的强耦合;
+ * 添加新枚举值时, 只需在此函数中增加一行, 无需担心顺序错位;
+ * @return {const std::map<ModelType, std::string>&} 枚举到字符串的只读映射
+ */
+inline const std::map<ModelType, std::string>& get_model_type_map()
+{
+    // static local 变量, 在 C++11 中是线程安全的 (magic static)
+    static const std::map<ModelType, std::string> model_type_map = {
+        {ModelType::yolov4, "yolov4"},    //
+        {ModelType::yolov5, "yolov5"},    //
+        {ModelType::yolov3u, "yolov3u"},  // anchor-free
+        {ModelType::yolov5u, "yolov5u"},  // anchor-free
+        {ModelType::yolov6u, "yolov6u"},  // anchor-free
+        {ModelType::yolov7u, "yolov7u"},  // anchor-free
+        {ModelType::yolov8, "yolov8"},    //
+        {ModelType::yolov9, "yolov9"},    //
+        {ModelType::yolov10, "yolov10"},  //
+        {ModelType::yolo11, "yolo11"},    //
+        {ModelType::yolo12, "yolo12"},    //
+        {ModelType::yolo26, "yolo26"},    //
+    };
+    return model_type_map;
+}
 
 /***
- * @description: 枚举转字符串 (O(1) 性能)
+ * @description: 获取 TaskType 到字符串的映射表 (单例, 延迟初始化)
+ * @return {const std::map<TaskType, std::string>&} 枚举到字符串的只读映射
+ */
+inline const std::map<TaskType, std::string>& get_task_type_map()
+{
+    static const std::map<TaskType, std::string> task_type_map = {
+        {TaskType::classification, "classification"},  //
+        {TaskType::detection, "detection"},            //
+        {TaskType::segmentation, "segmentation"},      //
+        {TaskType::pose, "pose"},                      //
+        {TaskType::obb, "obb"},                        //
+    };
+    return task_type_map;
+}
+
+/***
+ * @description: 枚举转字符串 (O(log n) 性能, 基于 map 的 find)
  * @param type ModelType :
  * @return
  */
 inline std::string model_type_to_string(ModelType type)
 {
-    size_t index = static_cast<size_t>(type);
-    if (index < ModelTypeNames.size())
+    // 获取 ModelType 到字符串的映射表
+    const std::map<ModelType, std::string>& model_type_map = get_model_type_map();
+    // 使用 map 的 find 函数查找对应的 ModelType
+    std::map<ModelType, std::string>::const_iterator it = model_type_map.find(type);
+    // 如果找到了对应的 ModelType, 返回对应的字符串
+    if (it != model_type_map.end())
     {
-        return std::string(ModelTypeNames[index]);
+        // 对应 ModelType 的名称
+        return it->second;
     }
     return "unknown";
 }
 
 /***
- * @description: 字符串转枚举 (依然需要遍历，但代码很干净)
- * @param str string_view :
+ * @description: 字符串转枚举 (O(n) 遍历, 但代码很干净)
+ * @param str string :
  * @return
  */
-inline ModelType model_type_from_string(std::string_view str)
+inline ModelType model_type_from_string(const std::string& str)
 {
-    for (size_t i = 0; i < ModelTypeNames.size(); ++i)
+    // 获取 ModelType 到字符串的映射表
+    const std::map<ModelType, std::string>& model_type_map = get_model_type_map();
+    // 映射表 迭代器
+    std::map<ModelType, std::string>::const_iterator it = model_type_map.begin();
+    // 映射表 尾部迭代器
+    std::map<ModelType, std::string>::const_iterator end = model_type_map.end();
+    // 遍历映射表, 查找对应的 ModelType
+    for (; it != end; ++it)
     {
-        if (ModelTypeNames[i] == str)
+        // 根据 字符串查找对应的 ModelType
+        if (it->second == str)
         {
-            return static_cast<ModelType>(i);
+            return it->first;
         }
     }
-    throw std::invalid_argument("Unknown ModelType string");
+    throw std::invalid_argument("Unknown ModelType string: " + str);
 }
 
 /***
- * @description: 枚举转字符串 (O(1) 性能)
+ * @description: 枚举转字符串 (O(log n) 性能, 基于 map 的 find)
  * @param type TaskType :
  * @return
  */
 inline std::string task_type_to_string(TaskType type)
 {
-    size_t index = static_cast<size_t>(type);
-    if (index < TaskTypeNames.size())
+    // 获取 TaskType 到字符串的映射表
+    const std::map<TaskType, std::string>& task_type_map = get_task_type_map();
+    // 使用 map 的 find 函数查找对应的 TaskType
+    std::map<TaskType, std::string>::const_iterator it = task_type_map.find(type);
+
+    if (it != task_type_map.end())
     {
-        return std::string(TaskTypeNames[index]);
+        return it->second;
     }
     return "unknown";
 }
 
 /***
- * @description: 字符串转枚举
- * @param str string_view :
+ * @description: 字符串转枚举 (O(n) 遍历, 但代码很干净)
+ * @param str string :
  * @return
  */
-inline TaskType task_type_from_string(std::string_view str)
+inline TaskType task_type_from_string(const std::string& str)
 {
-    for (size_t i = 0; i < TaskTypeNames.size(); ++i)
+    // 获取 TaskType 到字符串的映射表
+    const std::map<TaskType, std::string>& task_type_map = get_task_type_map();
+    // 映射表 迭代器
+    std::map<TaskType, std::string>::const_iterator it = task_type_map.begin();
+    // 映射表 尾部迭代器
+    std::map<TaskType, std::string>::const_iterator end = task_type_map.end();
+    // 遍历映射表, 查找对应的 TaskType
+    for (; it != end; ++it)
     {
-        if (TaskTypeNames[i] == str)
+        if (it->second == str)
         {
-            return static_cast<TaskType>(i);
+            return it->first;
         }
     }
-    throw std::invalid_argument("unknown");
+    throw std::invalid_argument("Unknown TaskType string: " + str);
 }
 
 }  // namespace yolo
