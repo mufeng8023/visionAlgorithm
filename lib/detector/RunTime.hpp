@@ -142,7 +142,16 @@ class RunTime
                         LOG_DEFAULT_INFO("Init DetPostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
+                    // ultralytics 中实现的模型后处理都是一样的
+                    case ModelType::yolov3u:
+                    case ModelType::yolov5u:
+                    case ModelType::yolov6u:
+                    case ModelType::yolov7u:
                     case ModelType::yolov8:
+                    case ModelType::yolov9:
+                    case ModelType::yolov10:
+                    case ModelType::yolo11:
+                    case ModelType::yolo12:
                         // 初始化 DetPostProcessV8
                         this->postProcess = std::make_shared<DetPostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcessV8 Success!");
@@ -169,7 +178,10 @@ class RunTime
                         LOG_DEFAULT_INFO("Init PosePostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
+                    // ultralytics 中实现的模型后处理都是一样的
+                    case ModelType::yolov5u:
                     case ModelType::yolov8:
+                    case ModelType::yolo11:
                         // 初始化 PosePostProcessV8
                         this->postProcess = std::make_shared<PosePostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init PosePostProcessV8 Success!");
