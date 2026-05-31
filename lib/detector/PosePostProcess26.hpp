@@ -1,21 +1,21 @@
 /***
  * @Author       : gxs
- * @Date         : 2026-05-30 16:18:36
+ * @Date         : 2026-05-31 18:15:26
  * @LastEditors  : gxs
- * @LastEditTime : 2026-05-30 16:18:36
- * @FilePath     : /visionAlgorithm/lib/detector/DetPostProcess26.hpp
+ * @LastEditTime : 2026-05-31 18:15:28
+ * @FilePath     : /visionAlgorithm/lib/detector/PosePostProcess26.hpp
  * @Description  :
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
-#ifndef __DETPOSTPROCESS26__H__
-#define __DETPOSTPROCESS26__H__
+#ifndef __POSEPOSTPROCESS26__H__
+#define __POSEPOSTPROCESS26__H__
 
 #include "BasePostProcess.hpp"
 
 namespace yolo
 {
-class DetPostProcess26 : public BasePostProcess
+class PosePostProcess26 : public BasePostProcess
 {
    private:
     // 推理的batch
@@ -38,6 +38,12 @@ class DetPostProcess26 : public BasePostProcess
     uint32 max_det = 300;
     // 是否进行类别区分, false: 不同类别之间不会进行nms
     bool agnostic = false;
+
+    // kpt 相关信息
+    // 关键点个数
+    uint32 kpt_count = 0;
+    // 关键点维度 (2: x,y; 3: x,y,v)
+    uint32 kpt_dim = 0;
 
     // 每个位置anchor个数 anchors[0].size(), anchor-free默认为1;
     uint32 na = 0;
@@ -74,7 +80,7 @@ class DetPostProcess26 : public BasePostProcess
     };
 
    public:
-    DetPostProcess26(const DetectionNetConfig& config)
+    PosePostProcess26(const DetectionNetConfig& config)
     {
         // 初始化各种参数
         this->batch_size = config.batch_size;
@@ -87,6 +93,8 @@ class DetPostProcess26 : public BasePostProcess
         this->iou_thrs = config.iou_thrs;
         this->max_det = config.max_det;
         this->agnostic = config.agnostic;
+        this->kpt_count = config.kpt_count;
+        this->kpt_dim = config.kpt_dim;
 
         this->na = config.na;
         this->no = config.no;
@@ -109,31 +117,31 @@ class DetPostProcess26 : public BasePostProcess
      * @description: 禁用拷贝构造函数, 防止对象被拷贝
      * @return
      */
-    DetPostProcess26(const DetPostProcess26& other) = delete;
+    PosePostProcess26(const PosePostProcess26& other) = delete;
 
     /***
      * @description: 禁用赋值操作符, 防止对象被赋值
      * @return
      */
-    DetPostProcess26& operator=(const DetPostProcess26& other) = delete;
+    PosePostProcess26& operator=(const PosePostProcess26& other) = delete;
 
     /***
      * @description: 禁用移动构造函数, 防止对象被移动
      * @return
      */
-    DetPostProcess26(DetPostProcess26&& other) = default;
+    PosePostProcess26(PosePostProcess26&& other) = default;
 
     /***
      * @description: 禁用移动赋值操作符, 防止对象被移动赋值
      * @return
      */
-    DetPostProcess26& operator=(DetPostProcess26&& other) = default;
+    PosePostProcess26& operator=(PosePostProcess26&& other) = default;
 
     /***
      * @description: 析构函数
      * @return
      */
-    ~DetPostProcess26() = default;
+    ~PosePostProcess26() = default;
 
     /***
      * @description: 处理一层输出特征图
@@ -155,6 +163,11 @@ class DetPostProcess26 : public BasePostProcess
     {
         // NOTE: 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
         const uint32 grid_size = net_out_h * net_out_w;
+        // 动态计算关键点在通道 C维度 上的绝对起始通道索引
+        // 关键点通道排在 BBox 和所有类别通道 nc 的后面
+        const uint32 kpt_start_channel = 4 + this->nc;
+        // 相邻 kpt 之间 相同信息的步距偏移, xi 和 xi+1 的通道索引间隔为 kpt_step
+        const uint32 kpt_step = this->kpt_dim * grid_size;
 
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
@@ -184,6 +197,17 @@ class DetPostProcess26 : public BasePostProcess
                 const float32* y2_ptr = base_output_ptr + 3 * grid_size;
                 // 类别首地址, 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
                 const float32* class_ptr = base_output_ptr + 4 * grid_size;
+                // kpt 信息首地址
+                // kpt_x 信息首地址
+                const float32* kpt_x_ptr = base_output_ptr + (kpt_start_channel + 0) * grid_size;
+                // kpt_y 信息首地址
+                const float32* kpt_y_ptr = base_output_ptr + (kpt_start_channel + 1) * grid_size;
+                // kpt_v 信息首地址
+                const float32* kpt_v_ptr = nullptr;
+                if (this->kpt_dim == 3)
+                {
+                    kpt_v_ptr = base_output_ptr + (kpt_start_channel + 2) * grid_size;
+                }
 
                 // 遍历每个位置 (特征图网格)
                 // 核心优化,将 grid_y 和 grid_x 调整至最内层
@@ -307,6 +331,42 @@ class DetPostProcess26 : public BasePostProcess
                         result[output_idx][ObjectOffset::score] = class_infos[0].score;
                         result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(class_infos[0].cls_id);
 
+                        // 解码关键点
+                        // 定义一个临时指针指向当前类别的通道
+                        const float32* current_kpt_x_ptr = kpt_x_ptr;
+                        const float32* current_kpt_y_ptr = kpt_y_ptr;
+                        const float32* current_kpt_v_ptr = kpt_v_ptr;
+                        // 关键点在各通道是以 [kpt0_x, kpt0_y, kpt0_v, kpt1_x, ...] 顺序紧密交错排列
+                        for (uint32 kpt_idx = 0; kpt_idx < this->kpt_count; ++kpt_idx)
+                        {
+                            // 保存结果时候的偏移量
+                            uint32 res_kpt_offset = ObjectOffset::extra_start + kpt_idx * this->kpt_dim;
+
+                            // NOTE : YOLO26 - Pose 和YOLOv8 - Pose / YOLO11 - Pose 关键点的区别就是在这里
+                            //  x坐标
+                            float32 kpt_x = current_kpt_x_ptr[grid_offset] * scale_output;
+                            result[output_idx][res_kpt_offset + 0] = (kpt_x + grid_x + 0.5) * stride;
+                            // y坐标
+                            float32 kpt_y = current_kpt_y_ptr[grid_offset] * scale_output;
+                            result[output_idx][res_kpt_offset + 1] = (kpt_y + grid_y + 0.5) * stride;
+
+                            // 指针递增, 指向下一个关键点对应的通道首地址
+                            current_kpt_x_ptr += kpt_step;
+                            current_kpt_y_ptr += kpt_step;
+
+                            // 可选的 关键点可见性
+                            if (this->kpt_dim == 3)
+                            {
+                                // 可选的关键点可见性
+                                float32 kpt_v = current_kpt_v_ptr[grid_offset] * scale_output;
+                                result[output_idx][res_kpt_offset + 2] = kpt_v;
+
+                                // 指针递增, 指向下一个关键点对应的通道首地址
+                                current_kpt_v_ptr += kpt_step;
+                            }
+
+                        }  // for this->kpt_count
+
                         // 获取最后一个检测目标的数据指针
                         const float32* data = result[output_idx];
 
@@ -362,4 +422,4 @@ class DetPostProcess26 : public BasePostProcess
 };
 }  // namespace yolo
 
-#endif  // !__DETPOSTPROCESS26__H__
+#endif  // !__POSEPOSTPROCESS26__H__

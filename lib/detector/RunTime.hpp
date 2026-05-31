@@ -15,6 +15,7 @@
 #include "DetPostProcessV5.hpp"
 #include "DetPostProcessV8.hpp"
 #include "OpencvNet.hpp"
+#include "PosePostProcess26.hpp"
 #include "PosePostProcessV5.hpp"
 #include "PosePostProcessV8.hpp"
 #include "YoloObject.h"
@@ -192,6 +193,12 @@ class RunTime
                         this->postProcess = std::make_shared<PosePostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init PosePostProcessV8 Success!");
                         break;  // case ModelType::yolov8
+
+                    case ModelType::yolo26:
+                        // 初始化 PosePostProcess26
+                        this->postProcess = std::make_shared<PosePostProcess26>(this->config);
+                        LOG_DEFAULT_INFO("Init PosePostProcess26 Success!");
+                        break;  // case ModelType::yolov26
 
                     default:
                         LOG_DEFAULT_ERROR("model type: %s not support;",
