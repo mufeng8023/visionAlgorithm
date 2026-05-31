@@ -15,6 +15,8 @@
 
 `DetPostProcessV5` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv5 系列 anchor-base 检测模型的输出解码。支持可选的置信度通道 (如 YOLOv5-Face)。
 
+> **注意**: 导出 ONNX 模型时, 置信度分数和类别分数已经过 sigmoid 激活, 因此后处理中直接使用原始值, 无需额外调用 sigmoid。sigmoid 可通过 NPU 等硬件加速完成。
+
 ## 类定义
 
 **文件**: `lib/detector/DetPostProcessV5.hpp`  
@@ -64,11 +66,11 @@ void run(const std::vector<NetOutput>& outputs,
 
 ## 边界框解码公式
 
-YOLOv5 使用 anchor-base 的解码方式:
+YOLOv5 使用 anchor-base 的解码方式 (网络输出已过 sigmoid, 直接使用原始值):
 
 ```
-x = (sigmoid(tx) * 2 - 0.5 + grid_x) * stride
-y = (sigmoid(ty) * 2 - 0.5 + grid_y) * stride
-w = (sigmoid(tw) * 2)^2 * anchor_w
-h = (sigmoid(th) * 2)^2 * anchor_h
+x = (tx * 2 - 0.5 + grid_x) * stride
+y = (ty * 2 - 0.5 + grid_y) * stride
+w = (tw * 2)^2 * anchor_w
+h = (th * 2)^2 * anchor_h
 ```

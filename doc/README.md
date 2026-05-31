@@ -24,8 +24,10 @@
 - [BasePostProcess 后处理基类](BasePostProcess.md) - 后处理抽象接口与 NMS 实现
 - [DetPostProcessV5 YOLOv5 检测后处理](DetPostProcessV5.md) - YOLOv5 anchor-base 检测解码
 - [DetPostProcessV8 YOLOv8 检测后处理](DetPostProcessV8.md) - YOLOv8 anchor-free 检测解码
+- [DetPostProcess26 YOLOv26 检测后处理](DetPostProcess26.md) - YOLOv26 端到端检测解码
 - [PosePostProcessV5 YOLOv5 姿态后处理](PosePostProcessV5.md) - YOLOv5 姿态估计关键点解码
-- [PosePostProcessV8 YOLOv8 姿态后处理](PosePostProcessV8.md) - YOLOv8 姿态估计关键点解码
+- [PosePostProcessV8 YOLOv8 姿态后处理](PosePostProcessV8.md) - YOLOv8 anchor-free 姿态估计关键点解码
+- [PosePostProcess26 YOLOv26 姿态后处理](PosePostProcess26.md) - YOLOv26 端到端姿态估计关键点解码
 
 ## 数据结构
 

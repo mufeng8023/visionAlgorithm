@@ -15,6 +15,8 @@
 
 `PosePostProcessV5` 是 `BasePostProcess` 的派生类, 专门处理 YOLOv5 系列 anchor-base 姿态估计模型的输出解码。在检测框解码的基础上, 额外解析关键点 (keypoint) 信息。
 
+> **注意**: 导出 ONNX 模型时, 置信度分数、类别分数和关键点坐标已经过 sigmoid 激活, 因此后处理中直接使用原始值, 无需额外调用 sigmoid。sigmoid 可通过 NPU 等硬件加速完成。
+
 ## 类定义
 
 **文件**: `lib/detector/PosePostProcessV5.hpp`  
@@ -59,10 +61,10 @@ void run(const std::vector<NetOutput>& outputs,
 [bbox(4) + conf(1) + nc + kpt0_x, kpt0_y, kpt0_v, kpt1_x, ...]
 ```
 
-解码公式:
+解码公式 (网络输出已过 sigmoid, 直接使用原始值):
 
 ```
-kpt_x = (sigmoid(kpt_x_raw) * anchor_w + grid_x) * stride
-kpt_y = (sigmoid(kpt_y_raw) * anchor_h + grid_y) * stride
-kpt_v = sigmoid(kpt_v_raw)  // 仅 kpt_dim == 3 时
+kpt_x = (kpt_x_raw * anchor_w + grid_x) * stride
+kpt_y = (kpt_y_raw * anchor_h + grid_y) * stride
+kpt_v = kpt_v_raw  // 仅 kpt_dim == 3 时
 ```
