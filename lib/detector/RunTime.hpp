@@ -11,6 +11,7 @@
 #ifndef __RUNTIME__H__
 #define __RUNTIME__H__
 
+#include "DetPostProcess26.hpp"
 #include "DetPostProcessV5.hpp"
 #include "DetPostProcessV8.hpp"
 #include "OpencvNet.hpp"
@@ -146,16 +147,21 @@ class RunTime
                     case ModelType::yolov3u:
                     case ModelType::yolov5u:
                     case ModelType::yolov6u:
-                    case ModelType::yolov7u:
                     case ModelType::yolov8:
                     case ModelType::yolov9:
-                    case ModelType::yolov10:
                     case ModelType::yolo11:
                     case ModelType::yolo12:
                         // 初始化 DetPostProcessV8
                         this->postProcess = std::make_shared<DetPostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcessV8 Success!");
                         break;  // case ModelType::yolov8
+
+                    case ModelType::yolov10:
+                    case ModelType::yolo26:
+                        // 初始化 DetPostProcess26
+                        this->postProcess = std::make_shared<DetPostProcess26>(this->config);
+                        LOG_DEFAULT_INFO("Init DetPostProcess26 Success!");
+                        break;  // case ModelType::yolov26
 
                     // TODO: 后续实现 yolo11 / yolo26 / yolov9 / yolov10 / yolov12 等
                     default:

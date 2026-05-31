@@ -195,10 +195,13 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     // 需要计算的一些步骤和参数
     // 类别数量
     config.nc = config.names.size();
+    LOG_DEFAULT_INFO("nc:%d", config.nc);
     // 输出层数量
     config.nl = config.strides.size();
+    LOG_DEFAULT_INFO("nl:%d", config.nl);
     // 每个输出层的anchor数量
     config.na = config.anchors.empty() ? 1 : config.anchors[0].size() / 2;
+    LOG_DEFAULT_INFO("na:%d", config.na);
     // 输出的信息数量
     // anchor-base yolov5: 4 + [1 if has_conf else 0] + nc + kpt_count * kpt_dim
     // anchor-free yolov8: 4 + nc + kpt_count * kpt_dim
@@ -232,6 +235,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
         // 抛出异常, 退出程序
         throw std::runtime_error("task not support");
     }
+    LOG_DEFAULT_INFO("no:%d", config.no);
 
     // 根据类别名字, 将 conf_thrs 进行扩充, 保证数量一致, 如果 conf_thrs 个数小于类别个数, 则使用最后一个值进行填充
     if (config.conf_thrs.size() < config.nc)
@@ -241,6 +245,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     }
     // 获取最小的conf阈值
     config.min_conf = *std::min_element(config.conf_thrs.begin(), config.conf_thrs.end());
+    LOG_DEFAULT_INFO("min_conf:%f", config.min_conf);
 
     // 确保 scale_outputs / anchors / strides 数量一致
     if (config.model_type == ModelType::yolov5)
@@ -268,6 +273,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     {
         config.net_out_h.push_back(config.input_height / config.strides[i]);
         config.net_out_w.push_back(config.input_width / config.strides[i]);
+        LOG_DEFAULT_INFO("net_out_h[%d]:%d, net_out_w[%d]:%d", i, config.net_out_h[i], i, config.net_out_w[i]);
     }
 
     LOG_DEFAULT_INFO("load ini_path:%s", ini_path.c_str());

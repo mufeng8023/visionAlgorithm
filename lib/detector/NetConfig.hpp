@@ -24,10 +24,10 @@ enum class ModelType : uint8
 {
     yolov4 = 0,
     yolov5,   // anchor-base
+    yolov7,   //
     yolov3u,  // anchor-free, u是指ultralytics
     yolov5u,  // anchor-free, u是指ultralytics
     yolov6u,  // anchor-free, u是指ultralytics
-    yolov7u,  // anchor-free, u是指ultralytics
     yolov8,
     yolov9,
     yolov10,
@@ -123,10 +123,10 @@ inline const std::map<ModelType, std::string>& get_model_type_map()
     static const std::map<ModelType, std::string> model_type_map = {
         {ModelType::yolov4, "yolov4"},    //
         {ModelType::yolov5, "yolov5"},    //
+        {ModelType::yolov7, "yolov7"},    //
         {ModelType::yolov3u, "yolov3u"},  // anchor-free
         {ModelType::yolov5u, "yolov5u"},  // anchor-free
         {ModelType::yolov6u, "yolov6u"},  // anchor-free
-        {ModelType::yolov7u, "yolov7u"},  // anchor-free
         {ModelType::yolov8, "yolov8"},    //
         {ModelType::yolov9, "yolov9"},    //
         {ModelType::yolov10, "yolov10"},  //

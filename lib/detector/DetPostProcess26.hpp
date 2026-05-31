@@ -60,11 +60,18 @@ class DetPostProcess26 : public BasePostProcess
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
 
    private:
-    typedef struct
+    class ClassInfo
     {
+       public:
         uint32 cls_id = 0;
         float32 score = 0.0;
-    } ClassInfo;
+
+        // 添加这个构造函数
+        ClassInfo(uint32 cls_id, float32 score) : cls_id(cls_id), score(score) {}
+
+        // 如果代码其他地方需要创建空实例, 保留默认构造函数
+        ClassInfo() = default;
+    };
 
    public:
     DetPostProcess26(const DetectionNetConfig& config)
@@ -203,7 +210,7 @@ class DetPostProcess26 : public BasePostProcess
                             // 如果是agnostic, 每个锚点仅有一个预测结果
                             class_infos.reserve(1);
                             // 初始化一个类别信息
-                            class_infos.emplace_back(0, -1.0f);
+                            class_infos.emplace_back(0U, -1.0f);
                         }
                         else
                         {
