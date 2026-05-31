@@ -50,9 +50,12 @@ class OpencvNet : public BaseNet
     uint32 nl = 0;
     // 每个特征图的宽高
     std::vector<uint32> net_out_h = {};
-    std::vector<uint32> output_w = {};
-    // 输出的每个特征图的数据个数, batch_size * na * no * net_out_h[i] * output_w[i]
+    std::vector<uint32> net_out_w = {};
+    // 输出的每个特征图的数据个数, batch_size * na * no * net_out_h[i] * net_out_w[i]
     std::vector<uint32> output_len = {};  // 每个特征图的输出数据大小
+
+    // onnx 模型的输出名称, 加载模型时只获取一次, 后续复用
+    std::vector<std::string> out_layer_names;
 
     // 输入的 batch 数据, 大小为 (batch_size, input_channels, input_height, input_width)
     cv::Mat inputBatch;
@@ -76,12 +79,13 @@ class OpencvNet : public BaseNet
         this->no = config.no;
         this->nl = config.nl;
         this->net_out_h = config.net_out_h;
-        this->output_w = config.net_out_w;
+        this->net_out_w = config.net_out_w;
 
         for (uint32 i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
-            this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] * this->output_w[i]);
+            this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] *
+                                       this->net_out_w[i]);
         }
     }
 
@@ -186,6 +190,8 @@ class OpencvNet : public BaseNet
                 }  // GPU 设备校验
             }  // GPU/CPU 判断
 
+            this->out_layer_names = this->net.getUnconnectedOutLayersNames();
+
             return true;
         }  // try
 
@@ -267,7 +273,7 @@ class OpencvNet : public BaseNet
             std::vector<cv::Mat> net_outputs;
 
             // !默认的情况: 输入是uint8, 输出是float32
-            this->net.forward(net_outputs, this->net.getUnconnectedOutLayersNames());
+            this->net.forward(net_outputs, this->out_layer_names);
 
             if (net_outputs.empty())
             {
@@ -285,94 +291,55 @@ class OpencvNet : public BaseNet
                 return false;
             }
 
-            for (uint32 i = 0; i < net_outputs.size(); ++i)
+            // 使用两层 for 动态 适配
+            // OpenCV 输出的特征图是按照 节点名称排序的,
+            // 为了防止出现 节点名称顺序 和 特征图大小 顺序不一致的情况, 这里使用两层 for 循环来匹配
+            // yolov8n-p2 输入宽640 输出四个特征图 160 -> 80 -> 40 -> 20 (4个)
+            // 输出节点名称为 850 : 160, 911 : 80, 972 : 40, 1033 : 20
+            // outLayerNames 顺序却是 1033, 850, 972, 911 导致出现的问题, 所以在这里替换为 动态匹配方式再赋值
+            for (uint32 i = 0; i < net_outputs.size(); ++i)  // 遍历 OpenCV 输出特征图
             {
-                // 保证 (batch_size, channel, height, width) 数量是正确的
-                if (net_outputs[i].size[0] != this->batch_size        // batch size
-                    || net_outputs[i].size[1] != this->na * this->no  // channel
-                    || net_outputs[i].size[2] != this->net_out_h[i]   // height
-                    || net_outputs[i].size[3] != this->output_w[i]    // width
-                )
+                for (uint32 j = 0; j < this->nl; ++j)  // 遍历 每一层
                 {
-                    LOG_DEFAULT_ERROR(
-                        "%s: Output %d has invalid shape [%d, %d, %d, %d]. Expected [%d, %d, %d, %d]. Inference "
-                        "failed.",
-                        this->to_string().c_str(), i,  // 索引
-                        net_outputs[i].size[0],        // 输出的Mat batch size
-                        net_outputs[i].size[1],        // 输出的Mat channel
-                        net_outputs[i].size[2],        // 输出的Mat height
-                        net_outputs[i].size[3],        // 输出的Mat width
-                        this->batch_size,              // batch size
-                        this->na * this->no,           // channel
-                        this->net_out_h[i],            // height
-                        this->output_w[i]              // width
-                    );
-
-                    // 不是预期输出应该直接结束, 直接返回 false
-                    return false;
-                }
-
-                // 记录输出特征图的维度信息和数据个数, 方便调试
-                LOG_DEFAULT_DEBUG("out%d: [%d, %d, %d, %d], len=%d", i,  // 索引
-                                  this->batch_size,                      // batch size
-                                  this->na * this->no,                   // channel
-                                  this->net_out_h[i],                    // height
-                                  this->output_w[i],                     // width
-                                  this->output_len[i]                    // 输出数据个数
-                );
-
-                if (i >= outputs.size())  // 使用 emplace_back 添加结果
-                {
-                    // !如果进入了这里, 那么说明代码是有问题的, 写这个分支是为了防止越界
-                    LOG_DEFAULT_WARN("%s: Output %d is out of bounds. Using emplace_back to add result.",
-                                     this->to_string().c_str(), i);
-
-                    outputs.emplace_back(NetOutput(this->batch_size,     // batch size
-                                                   this->na * this->no,  // channel
-                                                   this->net_out_h[i],   // height
-                                                   this->output_w[i]     // width
-                                                   ));
-
-                    // reinterpret_cast告诉编译器: 从这个地址开始, 按照 float32 的规则去读取接下来的 4 个字节
-                    // 将 net_outputs[i] 的数据复制到 outputs[i] 中
-                    float32* data_ptr = reinterpret_cast<float32*>(net_outputs[i].data);  // !可能会暴雷
-
-                    if (data_ptr != nullptr                                         // 需要确保 data_ptr 不为空
-                        && this->output_len[i] == outputs.back().get_buffer_size()  // 数据长度要一致
+                    // 保证 (batch_size, channel, height, width) 数量是正确的
+                    if (net_outputs[i].size[0] == this->batch_size        // batch size
+                        && net_outputs[i].size[1] == this->na * this->no  // channel
+                        && net_outputs[i].size[2] == this->net_out_h[j]   // height
+                        && net_outputs[i].size[3] == this->net_out_w[j]   // width
                     )
                     {
-                        // 如果 data_ptr 不为空, 将数据复制到 outputs[i] 中
-                        outputs.back().set_data(data_ptr, this->output_len[i]);
-                    }
-                    else
-                    {
-                        // 如果 data_ptr 为空, 记录错误日志
-                        LOG_DEFAULT_ERROR("%s: Output data pointer is null for output %d. Inference failed.",
-                                          this->to_string().c_str(), i);
-                        return false;
-                    }
-                }  // outputs 是空的, 使用 emplace_back 添加结果
-                else  // 如果 outputs 不为空, 直接复制结果到对应索引位置
-                {
-                    // 数据转为 float32 类型, 并复制到 outputs[i] 中
-                    float32* data_ptr = reinterpret_cast<float32*>(net_outputs[i].data);
+                        // 记录输出特征图的维度信息和数据个数, 方便调试
+                        LOG_DEFAULT_DEBUG("out%d: [%d, %d, %d, %d], len=%d", j,  // 索引
+                                          this->batch_size,                      // batch size
+                                          this->na * this->no,                   // channel
+                                          this->net_out_h[j],                    // height
+                                          this->net_out_w[j],                    // width
+                                          this->output_len[j]                    // 输出数据个数
+                        );
 
-                    if (data_ptr != nullptr                                     // 需要确保 data_ptr 不为空
-                        && this->output_len[i] == outputs[i].get_buffer_size()  // 数据长度要一致
-                    )
-                    {
-                        // 如果 data_ptr 不为空, 将数据复制到 outputs[i] 中
-                        outputs[i].set_data(data_ptr, this->output_len[i]);
+                        // 数据转为 float32 类型, 并复制到 outputs[i] 中
+                        float32* data_ptr = reinterpret_cast<float32*>(net_outputs[i].data);
+
+                        if (data_ptr != nullptr                                     // 需要确保 data_ptr 不为空
+                            && this->output_len[j] == outputs[j].get_buffer_size()  // 数据长度要一致
+                        )
+                        {
+                            // 如果 data_ptr 不为空, 将数据复制到 outputs[i] 中
+                            outputs[j].set_data(data_ptr, this->output_len[j]);
+                        }
+                        else
+                        {
+                            // 如果 data_ptr 为空, 记录错误日志并清空 outputs
+                            LOG_DEFAULT_ERROR("%s: Output data pointer is null for output %d. Inference failed.",
+                                              this->to_string().c_str(), j);
+                            return false;
+                        }
+
+                        // 找到匹配的输出特征图, 跳出内层循环, 节约时间
+                        break;
                     }
-                    else
-                    {
-                        // 如果 data_ptr 为空, 记录错误日志并清空 outputs
-                        LOG_DEFAULT_ERROR("%s: Output data pointer is null for output %d. Inference failed.",
-                                          this->to_string().c_str(), i);
-                        return false;
-                    }
-                }  // outputs 不为空, 直接对应位置复制结果
-            }  // for 获取输出结果循环结束
+                }  // for 遍历 nl 动态适配特征图的不同size的结果
+            }  // for 遍历 net_outputs
 
             return true;
         }  // try
