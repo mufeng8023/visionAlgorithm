@@ -234,28 +234,30 @@ class DetPostProcessV8 : public BasePostProcess
                         // x1坐标: (grid_x + 0.5 - value) * stride
                         // x1 = (grid_x + 0.5f - dx1) * stride;
                         // x = (x1 + x2) / 2 = (grid_x + 0.5f) * stride + (dx2 - dx1) * 0.5 * stride
-                        result[output_idx][0] = (grid_x + 0.5f) * stride + (dx2 - dx1) * 0.5f * stride;  // 中心点x
+                        result[output_idx][ObjectOffset::x_center] =
+                            (grid_x + 0.5f) * stride + (dx2 - dx1) * 0.5f * stride;  // 中心点x
 
                         // y1坐标: (grid_y + 0.5 - value) * stride
                         // y1 = (grid_y + 0.5f - dy1) * stride;
                         // y = (y1 + y2) / 2 = (grid_y + 0.5f) * stride + (dy2 - dy1) * 0.5 * stride
-                        result[output_idx][1] = (grid_y + 0.5f) * stride + (dy2 - dy1) * 0.5f * stride;  // 中心点y
+                        result[output_idx][ObjectOffset::y_center] =
+                            (grid_y + 0.5f) * stride + (dy2 - dy1) * 0.5f * stride;  // 中心点y
 
                         // x2坐标: (grid_x + 0.5 + value) * stride
                         // x2 = (grid_x + 0.5f + dx2) * stride;
                         // width = x2 - x1 = (grid_x + 0.5f + dx2) * stride - (grid_x + 0.5f - dx1) * stride
                         // width = (dx2 + dx1) * stride
-                        result[output_idx][2] = (dx2 + dx1) * stride;  // width
+                        result[output_idx][ObjectOffset::width] = (dx2 + dx1) * stride;  // width
 
                         // y2坐标: (grid_y + 0.5 + value) * stride
                         // y2 = (grid_y + 0.5f + dy2) * stride;
-                        // hight = y2 - y1 = (grid_y + 0.5f + dy2) * stride - (grid_y + 0.5f - dy1) * stride
-                        // hight = (dy2 + dy1) * stride
-                        result[output_idx][3] = (dy2 + dy1) * stride;  // hight
+                        // height = y2 - y1 = (grid_y + 0.5f + dy2) * stride - (grid_y + 0.5f - dy1) * stride
+                        // height = (dy2 + dy1) * stride
+                        result[output_idx][ObjectOffset::height] = (dy2 + dy1) * stride;  // height
 
                         // 存储最终置信度和类别索引
-                        result[output_idx][4] = max_class_score;
-                        result[output_idx][5] = static_cast<float32>(max_class_idx);
+                        result[output_idx][ObjectOffset::score] = max_class_score;
+                        result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(max_class_idx);
 
                     }  // for grid_x
 

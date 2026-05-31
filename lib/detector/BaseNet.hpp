@@ -24,6 +24,11 @@
 
 namespace yolo
 {
+
+/***
+ * @description: 模型路径参数, 统一参数入口
+ * @return
+ */
 typedef struct
 {
     // onnx 模型路径
@@ -75,7 +80,7 @@ class BaseNet
  */
 inline std::ostream& operator<<(std::ostream& os, const BaseNet& obj)
 {
-    std::cout << obj.to_string();
+    os << obj.to_string();
     return os;
 }
 

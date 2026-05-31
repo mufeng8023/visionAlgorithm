@@ -203,7 +203,7 @@ class DetPostProcess26 : public BasePostProcess
                             // 如果是agnostic, 每个锚点仅有一个预测结果
                             class_infos.reserve(1);
                             // 初始化一个类别信息
-                            class_infos.emplace_back(-1, -1.0f);
+                            class_infos.emplace_back(0, -1.0f);
                         }
                         else
                         {
@@ -284,9 +284,9 @@ class DetPostProcess26 : public BasePostProcess
 
                         // y2坐标: (grid_y + 0.5 + value) * stride
                         // y2 = (grid_y + 0.5f + dy2) * stride;
-                        // hight = y2 - y1 = (grid_y + 0.5f + dy2) * stride - (grid_y + 0.5f - dy1) * stride
-                        // hight = (dy2 + dy1) * stride
-                        float32 hight = (dy2 + dy1) * stride;  // hight
+                        // height = y2 - y1 = (grid_y + 0.5f + dy2) * stride - (grid_y + 0.5f - dy1) * stride
+                        // height = (dy2 + dy1) * stride
+                        float32 height = (dy2 + dy1) * stride;  // height
 
                         // 获取当前已检测到的目标数量
                         uint32 output_idx = result.get_obj_count();
@@ -294,8 +294,12 @@ class DetPostProcess26 : public BasePostProcess
                         result.expand_obj();
                         result.set_valid(output_idx, true);
                         // 存储最终置信度和类别索引
-                        result[output_idx][4] = class_infos[0].score;
-                        result[output_idx][5] = static_cast<float32>(class_infos[0].cls_id);
+                        result[output_idx][ObjectOffset::x_center] = x;
+                        result[output_idx][ObjectOffset::y_center] = y;
+                        result[output_idx][ObjectOffset::width] = width;
+                        result[output_idx][ObjectOffset::height] = height;
+                        result[output_idx][ObjectOffset::score] = class_infos[0].score;
+                        result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(class_infos[0].cls_id);
 
                         // 获取最后一个检测目标的数据指针
                         const float32* data = result[output_idx];
@@ -310,8 +314,8 @@ class DetPostProcess26 : public BasePostProcess
                             output_idx = result.get_obj_count();  // 获取当前已检测到的目标数量
 
                             // 复制的最后一个的目标信息, 需要修改 类别和分数
-                            result[output_idx][4] = class_infos[idx].score;
-                            result[output_idx][5] = static_cast<float32>(class_infos[idx].cls_id);
+                            result[output_idx][ObjectOffset::score] = class_infos[idx].score;
+                            result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(class_infos[idx].cls_id);
                         }
 
                     }  // for grid_x
@@ -341,8 +345,11 @@ class DetPostProcess26 : public BasePostProcess
         // 因为是端到端的 yolo26 不需要进行 NMS, 置信度大于 conf_thr 的都是最终的预测结果
         // 虽然不需要进行 nms 但是需要根据分数排序, 之后再取前 max_det 个 作为结果
         // 在 this->process_one 中不能对输出结果使用 max_det 进行拦截, 否则可能会导致输出结果丢失
-        non_max_suppression(results, this->iou_thrs, this->agnostic, this->max_det,  //
-                            true                                                     // end2end 标志必须是 true
+        non_max_suppression(results,         //
+                            this->iou_thrs,  //
+                            this->agnostic,  //
+                            this->max_det,   //
+                            true             // end2end 标志必须是 true
         );
     }
 };

@@ -27,12 +27,6 @@ namespace yolo
 {
 
 /***
- * @description:
- * @param output ObjectBuffer& :
- * @param iou_thr float32 : iou阈值
- * @return
- */
-/***
  * @description: 对一个图片的结果进行nms操作
  * @param output ObjectBuffer& : 一张图片的所有结果
  * @param iou_thr float32 : iou阈值
@@ -209,16 +203,16 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
  * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
  * @return
  */
-void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
-                         float32 iou_thr = 0.45,              //
-                         bool agnostic = false,               //
-                         uint32 max_det = 300,                //
-                         bool end2end = false                 //
+inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
+                                float32 iou_thr = 0.45,              //
+                                bool agnostic = false,               //
+                                uint32 max_det = 300,                //
+                                bool end2end = false                 //
 )
 {
 #ifdef DEBUG_MODE
     // 断言检查
-    assert(0 <= iou_thr && iou_thr <= 1 && "Invalid IoU, valid values are between 0.0 and 1.0");
+    assert(0. <= iou_thr && iou_thr <= 1. && "Invalid IoU, valid values are between 0.0 and 1.0");
 #else
     if (iou_thr < 0. || iou_thr > 1.)
     {
@@ -301,7 +295,7 @@ class BasePostProcess
  */
 inline std::ostream& operator<<(std::ostream& os, const BasePostProcess& obj)
 {
-    std::cout << obj.to_string();
+    os << obj.to_string();
     return os;
 }
 

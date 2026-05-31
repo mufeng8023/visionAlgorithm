@@ -253,23 +253,23 @@ class DetPostProcessV5 : public BasePostProcess
                         // 解码边界框 (x, y, w, h)
                         // x坐标: (tx * 2 - 0.5 + cx) * stride
                         float32 dx = x_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][0] = (dx + grid_x - 0.5f) * stride;
+                        result[output_idx][ObjectOffset::x_center] = (dx + grid_x - 0.5f) * stride;
 
                         // y坐标
                         float32 dy = y_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][1] = (dy + grid_y - 0.5f) * stride;
+                        result[output_idx][ObjectOffset::y_center] = (dy + grid_y - 0.5f) * stride;
 
                         // w宽度: pw * (2 * tx)^2; 使用乘法代替 pow
                         float32 dw = w_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][2] = dw * dw * anchor_w;
+                        result[output_idx][ObjectOffset::width] = dw * dw * anchor_w;
 
                         // h高度: ph * (2 * ty)^2; 使用乘法代替 pow
                         float32 dh = h_ptr[grid_offset] * scale_output * 2.0f;
-                        result[output_idx][3] = dh * dh * anchor_h;
+                        result[output_idx][ObjectOffset::height] = dh * dh * anchor_h;
 
                         // 存储最终置信度和类别索引
-                        result[output_idx][4] = box_conf;
-                        result[output_idx][5] = static_cast<float32>(max_class_idx);
+                        result[output_idx][ObjectOffset::score] = box_conf;
+                        result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(max_class_idx);
 
                     }  // for grid_x
 
