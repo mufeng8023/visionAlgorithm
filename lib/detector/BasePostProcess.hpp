@@ -147,6 +147,61 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
 }
 
 /***
+ * @description:
+ * @param output ObjectBuffer& : 后处理后的输出结果,
+ * @param max_det uint32 :
+ * @return
+ */
+static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
+{
+    // 获取所有目标的个数
+    uint32 count = output.get_obj_count();
+    LOG_DEFAULT_INFO("nms_ops: output.size = %d", count);
+    if (count <= max_det)
+    {
+        return;
+    }
+
+    // 保证目标都是有效的
+    if (output.get_valid_count() != output.get_obj_count())
+    {
+        LOG_DEFAULT_DEBUG("end2end_nms: output.size = %d, valid_count = %d", output.get_obj_count(),
+                          output.get_valid_count());
+
+        // 压缩物理缓存区, 将目标变得连续
+        try
+        {
+            output.compact();
+        }
+        catch (const std::exception& e)
+        {
+            LOG_DEFAULT_ERROR("end2end_nms: %s", e.what());
+            throw std::runtime_error("end2end_nms: ObjectBuffer compact error");
+        }
+    }
+
+    //  获取按分数降序排列的索引列表, 添加进来的有效+无效[可能存在, 置信度筛选低于阈值被置为无效]的目标个数
+    std::vector<uint32> indices = output.get_sorted_indices();
+
+    // 遍历索引列表, max_det 个目标后, 剩余的目标设置为 无效
+    for (uint32 idx = max_det; idx < indices.size(); ++idx)
+    {
+        // 目标设置为 无效
+        output.set_valid(indices[idx], false);
+    }
+
+    // 压缩物理缓存区, 将目标变得连续
+    try
+    {
+        output.compact();
+    }
+    catch (const std::exception& e)
+    {
+        LOG_DEFAULT_ERROR("end2end_nms: %s", e.what());
+    }
+}
+
+/***
  * @description: 非极大值抑制
  * @param outputs std::vector<ObjectBuffer>& : 后处理后的输出结果, 每个图片算一个 ObjectBuffer
  * !本次设计是直接在每个 ObjectBuffer 上直接进行 nms 操作, 原地修改, 所以不能使用const
@@ -154,7 +209,12 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
  * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
  * @return
  */
-void non_max_suppression(std::vector<ObjectBuffer>& outputs, float32 iou_thr = 0.45, bool agnostic = false)
+void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
+                         float32 iou_thr = 0.45,              //
+                         bool agnostic = false,               //
+                         uint32 max_det = 300,                //
+                         bool end2end = false                 //
+)
 {
 #ifdef DEBUG_MODE
     // 断言检查
@@ -183,7 +243,14 @@ void non_max_suppression(std::vector<ObjectBuffer>& outputs, float32 iou_thr = 0
         // 对当前 Batch 的输出进行非极大值抑制
         try
         {
-            nms_ops(output, iou_thr, agnostic);
+            if (end2end)  // yolo26 和 yolov10 都是使用 end2end 模式
+            {
+                end2end_post(output, max_det);
+            }
+            else
+            {
+                nms_ops(output, iou_thr, agnostic);
+            }
         }
         catch (const std::exception& e)
         {
