@@ -26,9 +26,6 @@ RESULT="${ROOT}/test_res_temp"
 # 注意: onnx文件名可能与ini文件名不同(如 yolov8nDetPose 的 onnx 是 yolov8nPose)
 #       重命名后缀可选, 留空表示不重命名结果文件
 MODELS=(
-    # 火灾检测模型(使用火灾测试图)
-    "fire2ClsDet-bn-sim    fire2ClsDet-bn-sim.ini    fire2ClsDet-bn-sim.onnx    test_fire01.jpg"
-
     # 人脸检测模型
     "yolov5ssFaceDet-bn    yolov5ssFaceDet-bn.ini    yolov5ssFaceDet-bn.onnx    test_v8pose01.jpg    yolov5ssFaceDet"
     "yolov5ssFaceKpt2-bn   yolov5ssFaceKpt2-bn.ini   yolov5ssFaceKpt2-bn.onnx   test_v8pose01.jpg    yolov5ssFaceKpt2"
@@ -45,6 +42,7 @@ MODELS=(
     "yolov3uTinyDetVOC-bn  yolov3uTinyDetVOC-bn.ini  yolov3uTinyDetVOC-bn.onnx  test_v8pose01.jpg    yolov3uTinyDetVOC"
 
     # VOC数据集检测模型(YOLOv5/v6/v8/v9/v10系列)
+    "yolov5nDetVOC-bn      yolov5nDetVOC-bn.ini      yolov5nDetVOC-bn.onnx      test_v8pose01.jpg    yolov5nDetVOC"
     "yolov5nuDetVOC-bn     yolov5nuDetVOC-bn.ini     yolov5nuDetVOC-bn.onnx     test_v8pose01.jpg    yolov5nuDetVOC"
     "yolov6nuDetVOC-bn     yolov6nuDetVOC-bn.ini     yolov6nuDetVOC-bn.onnx     test_v8pose01.jpg    yolov6nuDetVOC"
     "yolov8nDetVOC-bn      yolov8nDetVOC-bn.ini      yolov8nDetVOC-bn.onnx      test_v8pose01.jpg    yolov8nDetVOC"

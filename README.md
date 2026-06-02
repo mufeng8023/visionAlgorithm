@@ -56,10 +56,10 @@ make -j12
 ./yolo \
   --log_ini_path=../log_config.ini \
   --model_bench=OpenCV \
-  --model_ini_path=../config/fire2ClsDet-bn-sim.ini \
-  --model_path=../onnx/fire2ClsDet-bn-sim.onnx \
+  --model_ini_path=../config/yolov5nDetVOC-bn.ini \
+  --model_path=../onnx/yolov5nDetVOC-bn.onnx \
   --device=0 \
-  --test_image_path=../test_img/test_fire01.jpg
+  --test_image_path=../test_img/test_v8pose01.jpg
 
 # 姿态估计
 ./yolo \
@@ -199,7 +199,7 @@ anchors = {}
 | YOLOv3-ultralytics   | `yolov3uDetVOC-bn.ini`     | VOC    | anchor-free 检测                   |
 | YOLOv3u-SPP          | `yolov3uSppDetVOC-bn.ini`  | VOC    | anchor-free 检测, SPP 变体         |
 | YOLOv3u-Tiny         | `yolov3uTinyDetVOC-bn.ini` | VOC    | anchor-free 检测, 轻量版 (2 层)    |
-| YOLOv5 (anchor-base) | `fire2ClsDet-bn-sim.ini`   | 自定义 | 烟火检测 (fire, smoke)             |
+| YOLOv5 (anchor-base) | `yolov5nDetVOC-bn.ini`     | VOC    | anchor-base 检测                   |
 | YOLOv5 (anchor-base) | `yolov5ssFaceDet-bn.ini`   | 自定义 | 人脸检测                           |
 | YOLOv5-ultralytics   | `yolov5nuDetVOC-bn.ini`    | VOC    | anchor-free 检测                   |
 | YOLOv6-ultralytics   | `yolov6nuDetVOC-bn.ini`    | VOC    | anchor-free 检测                   |
@@ -216,12 +216,12 @@ anchors = {}
 
 ### 姿态估计模型
 
-| 模型架构          | 配置文件                  | 关键点       | 说明                     |
-| ----------------- | ------------------------- | ------------ | ------------------------ |
-| YOLOv5-face (2pt) | `yolov5ssFaceKpt2-bn.ini` | 5 点 (2 维)  | 人脸关键点, 仅 (x, y)    |
-| YOLOv5-face (3pt) | `yolov5ssFaceKpt3-bn.ini` | 5 点 (3 维)  | 人脸关键点, (x, y, conf) |
-| YOLOv8-pose       | `yolov8nDetPose-bn.ini`   | 17 点 (3 维) | 人体姿态估计             |
-| YOLO26-pose       | `yolo26nPose-bn.ini`      | 17 点 (3 维) | 人体姿态估计, 端到端     |
+| 模型架构        | 配置文件                  | 关键点       | 说明                            |
+| --------------- | ------------------------- | ------------ | ------------------------------- |
+| YOLOv5-faceKpt2 | `yolov5ssFaceKpt2-bn.ini` | 5 点 (2 维)  | 人脸关键点, 仅 (x, y)           |
+| YOLOv5-faceKpt3 | `yolov5ssFaceKpt3-bn.ini` | 5 点 (3 维)  | 人脸关键点, (x, y, v)           |
+| YOLOv8-pose     | `yolov8nDetPose-bn.ini`   | 17 点 (3 维) | 人体姿态估计, (x, y, v)         |
+| YOLO26-pose     | `yolo26nPose-bn.ini`      | 17 点 (3 维) | 人体姿态估计, 端到端, (x, y, v) |
 
 > 所有预置的 ONNX 模型文件应位于 `onnx/` 目录下, 对应的 INI 配置文件位于 `config/` 目录下。
 > onnx 模型请参考 release 中下载;
