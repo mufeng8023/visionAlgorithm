@@ -58,6 +58,10 @@ cat > /tmp/sidebar_inject.js << 'JS_EOF'
 <script>
 (function(){
 var nList=[DOC_LIST];
+// 从列表中分离 README, 作为"文档首页"条目置于侧边栏首位;
+var readmeName='README';
+var readmeIdx=nList.indexOf(readmeName);
+if(readmeIdx!==-1){nList.splice(readmeIdx,1);}
 // 提取项目根目录基准路径(确保以 / 结尾), 用于构造侧边栏绝对路径链接;
 // 避免因 URL 末尾是否带 / 导致的相对路径解析异常;
 // 例如: /project-name/doc/BaseNet.html -> /project-name/
@@ -98,6 +102,8 @@ var currentFile=fileName.replace('.html','');
 // 使用绝对路径构建侧边栏, 兼容 GitLab/GitHub Pages 各种 URL 格式;
 var homeHref=base+'index.html';
 var html='<nav class="sidebar" id="sidebar"><div class="sidebar-header"><a href="'+homeHref+'">🏠 首页</a></div><ul><li class="sidebar-section">📄 详细文档</li>';
+// 将 README(文档首页) 作为独立条目置于侧边栏列表最上方;
+html+='<li><a href="'+base+'doc/README.html"'+(currentFile==='README'?' class="active"':'')+'>📖 文档首页</a></li>';
 for(var i=0;i<nList.length;i++){
 var nm=nList[i];
 html+='<li><a href="'+base+'doc/'+nm+'.html"'+(nm===currentFile?' class="active"':'')+'>'+nm+'</a></li>';
