@@ -60,7 +60,8 @@ build_tree_entries() {
                 display_name=$(echo "$line" | sed -n 's/- \[\([^]]*\)\].*/\1/p')
                 filename=$(echo "$line" | sed -n 's/.*(\([^)]*\)\.md).*/\1/p')
                 if [ -n "$current_section" ] && [ -n "$filename" ]; then
-                    entries="${entries}${current_section}:${display_name}:${filename} "
+                    entries="${entries}${current_section}:${display_name}:${filename}
+"
                 fi
                 ;;
         esac
@@ -139,6 +140,9 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
     # 按分类分组构建树节点
     prev_section=""
     section_items=""
+    old_ifs="$IFS"
+    IFS="
+"
     for entry in $TREE_ENTRIES; do
         section=$(echo "$entry" | cut -d: -f1)
         doc_name=$(echo "$entry" | cut -d: -f2)
@@ -149,6 +153,10 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
 <details class=\"tree-section\" open>
 <summary>📁 ${prev_section}</summary>
 <ul>"
+            # section_items 使用换行符分隔, 用 IFS 安全遍历
+            item_ifs="$IFS"
+            IFS="
+"
             for item in $section_items; do
                 item_name=$(echo "$item" | cut -d: -f1)
                 item_file=$(echo "$item" | cut -d: -f2)
@@ -160,6 +168,7 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
                 build_sidebar="${build_sidebar}
 <li><a href=\"${link_prefix}${item_file}.html\"${active_class}>📄 ${item_name}</a></li>"
             done
+            IFS="$item_ifs"
             build_sidebar="${build_sidebar}
 </ul>
 </details>"
@@ -170,15 +179,20 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
         if [ -z "$section_items" ]; then
             section_items="${doc_name}:${doc_file}"
         else
-            section_items="${section_items} ${doc_name}:${doc_file}"
+            section_items="${section_items}
+${doc_name}:${doc_file}"
         fi
     done
+    IFS="$old_ifs"
 
     if [ -n "$prev_section" ] && [ -n "$section_items" ]; then
         build_sidebar="${build_sidebar}
 <details class=\"tree-section\" open>
 <summary>📁 ${prev_section}</summary>
 <ul>"
+        item_ifs="$IFS"
+        IFS="
+"
         for item in $section_items; do
             item_name=$(echo "$item" | cut -d: -f1)
             item_file=$(echo "$item" | cut -d: -f2)
@@ -190,6 +204,7 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
             build_sidebar="${build_sidebar}
 <li><a href=\"${link_prefix}${item_file}.html\"${active_class}>📄 ${item_name}</a></li>"
         done
+        IFS="$item_ifs"
         build_sidebar="${build_sidebar}
 </ul>
 </details>"
