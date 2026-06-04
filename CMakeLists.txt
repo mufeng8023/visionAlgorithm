@@ -22,8 +22,46 @@ set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 # 编译时日志级别选项 (对应 logging.hpp 中的 LOG_COMPILE_LEVEL)
 # 可选值: 0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical
 set(LOG_COMPILE_LEVEL 1 CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical)")
+
+# ---- 版本 & Git 信息注入 (用于 lib/detector/version.h) ----
+# 编译时间注入 (格式: YYYYMMDD_HHMMSS)
+string(TIMESTAMP DETECT_BUILD_TIME "%Y%m%d_%H%M%S")
+# 获取当前 git commit 完整哈希
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE DETECT_GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+# 获取当前 git 分支名
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE DETECT_GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+# 若 git 获取失败则回退默认值
+if(NOT DETECT_GIT_HASH)
+    set(DETECT_GIT_HASH "unknown")
+endif()
+if(NOT DETECT_GIT_BRANCH)
+    set(DETECT_GIT_BRANCH "unknown")
+endif()
+
+message(STATUS "[BuildTime] DETECT_BUILD_TIME:     ${DETECT_BUILD_TIME}")
+message(STATUS "[GitHash]   DETECT_GIT_HASH:       ${DETECT_GIT_HASH}")
+message(STATUS "[GitBranch] DETECT_GIT_BRANCH:     ${DETECT_GIT_BRANCH}")
+
 # 将用户设置的日志级别通过 -D 宏传递给编译器
-add_compile_options(-Wall -g -std=c++17 -O2 -DLOG_COMPILE_LEVEL=${LOG_COMPILE_LEVEL})
+add_compile_options(-Wall -g -std=c++17 -O2
+    -DLOG_COMPILE_LEVEL=${LOG_COMPILE_LEVEL}
+    -DDETECT_BUILD_TIME="${DETECT_BUILD_TIME}"
+    -DDETECT_GIT_HASH="${DETECT_GIT_HASH}"
+    -DDETECT_GIT_BRANCH="${DETECT_GIT_BRANCH}"
+    -DDETECT_PROJECT_NAME="${PROJECT_NAME}"
+)
 
 # 项目根路径宏定义, 可通过 cmake .. -DPROJECT_ROOT=[path] 指定
 # 若未指定, 则默认使用 CMAKE_SOURCE_DIR (即 CMakeLists.txt 所在目录)
