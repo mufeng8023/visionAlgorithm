@@ -1,0 +1,27 @@
+pages:
+    stage: deploy
+    image: alpine:latest
+    before_script:
+        - apk add --no-cache pandoc
+    script:
+        - mkdir -p public
+        # 转换 README.md 为首页 index.html
+        - >
+            pandoc README.md -f markdown -t html -s -o public/index.html --metadata title="visionAlgorithm" --metadata
+            lang="zh-CN"
+        # 转换 doc/ 下所有 markdown 文件为 HTML
+        - mkdir -p public/doc
+        - |
+            for md_file in doc/*.md; do
+              base_name=$(basename "$md_file" .md)
+              pandoc "$md_file" -s -o "public/doc/${base_name}.html" \
+                --metadata title="${base_name}" \
+                --metadata lang="zh-CN"
+            done
+        # 修复 markdown 内部链接(.md)为 .html
+        - find public -name '*.html' -exec sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' {} +
+    artifacts:
+        paths:
+            - public
+    only:
+        - gh-pages
