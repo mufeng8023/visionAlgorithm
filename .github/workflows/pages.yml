@@ -1,4 +1,4 @@
-# 设置环境变量以强制 GitHub Actions 使用 Node.js 24, 消除 Node.js 20 弃用警告;
+# Node.js 20 将于 2026-09-16 从 runner 中移除, 届时需将 actions 升级至支持 Node.js 24 的版本;
 # 参考: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
 name: GitHub Pages
 
@@ -6,9 +6,6 @@ on:
     push:
         branches:
             - gh-pages
-
-env:
-    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
     build:

@@ -38,110 +38,102 @@ done
 # 5. 修复 markdown 内部链接(.md)为 .html
 find "$OUTPUT_DIR" -name '*.html' -exec sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' {} +
 
-# 6. 收集所有 doc 文件名
+# 6. 收集所有 doc 文件名(排除 README, 作为文档首页单独处理)
 echo "[build-pages] Collecting doc filenames..."
-DOC_LIST=""
+DOC_NAMES=""
 for html_file in "$OUTPUT_DIR"/doc/*.html; do
-    if [ -f "$html_file" ]; then
-        name=$(basename "$html_file" .html)
-        if [ -z "$DOC_LIST" ]; then
-            DOC_LIST="\"${name}\""
-        else
-            DOC_LIST="${DOC_LIST},\"${name}\""
-        fi
+    [ -f "$html_file" ] || continue
+    name=$(basename "$html_file" .html)
+    [ "$name" = "README" ] && continue
+    if [ -z "$DOC_NAMES" ]; then
+        DOC_NAMES="$name"
+    else
+        DOC_NAMES="${DOC_NAMES} ${name}"
     fi
 done
-echo "[build-pages] Doc files found: $DOC_LIST"
+echo "[build-pages] Doc files found: $DOC_NAMES"
 
-# 7. 生成侧边栏 JS 文件
-cat > /tmp/sidebar_inject.js << 'JS_EOF'
-<script>
-(function(){
-var nList=[DOC_LIST];
-// 从列表中分离 README, 作为"文档首页"条目置于侧边栏首位;
-var readmeName='README';
-var readmeIdx=nList.indexOf(readmeName);
-if(readmeIdx!==-1){nList.splice(readmeIdx,1);}
-// 提取项目根目录基准路径(确保以 / 结尾), 用于构造侧边栏绝对路径链接;
-// 避免因 URL 末尾是否带 / 导致的相对路径解析异常;
-// 例如: /project-name/doc/BaseNet.html -> /project-name/
-//       /project-name/index.html      -> /project-name/
-//       /project-name/                -> /project-name/
-//       /project-name (无尾随斜杠)     -> /project-name/
-//       /index.html                   -> /
-//       /                             -> /
-var path=window.location.pathname;
-var base;
-var docIdx=path.indexOf('/doc/');
-if(docIdx!==-1){
-  // 在 doc 子页面中, 截取到 /doc/ 之前(含尾部 /) 得到项目根路径;
-  base=path.substring(0,docIdx+1);
-}else{
-  // 在首页或非 doc 页面, 判断 pathname 末尾情况以构造正确的根路径;
-  var lastChar=path.charAt(path.length-1);
-  if(lastChar==='/'){
-    // URL 以 / 结尾, 如 /project-name/ , 本身就是根路径;
-    base=path;
-  }else{
-    // URL 不以 / 结尾, 可能是 /project-name 或 /project-name/index.html;
-    var lastSlash=path.lastIndexOf('/');
-    var lastSeg=path.substring(lastSlash+1);
-    if(lastSeg.indexOf('.')!==-1){
-      // 末尾是带扩展名的文件, 如 index.html; 去掉文件名得到根路径;
-      base=path.substring(0,lastSlash+1);
-    }else{
-      // 末尾无扩展名且无 /, 如 /project-name; 直接追加 /;
-      base=path+'/';
-    }
-  }
-}
-// 从 pathname 末尾提取当前文件名(如 "BaseNet.html", "index.html") , 用于高亮匹配;
-var lastSlashPos=path.lastIndexOf('/');
-var fileName=lastSlashPos>=0?path.substring(lastSlashPos+1):path;
-var currentFile=fileName.replace('.html','');
-// 使用绝对路径构建侧边栏, 兼容 GitLab/GitHub Pages 各种 URL 格式;
-var homeHref=base+'index.html';
-var html='<nav class="sidebar" id="sidebar"><div class="sidebar-header"><a href="'+homeHref+'">🏠 首页</a></div><ul><li class="sidebar-section">📄 详细文档</li>';
-// 将 README(文档首页) 作为独立条目置于侧边栏列表最上方;
-html+='<li><a href="'+base+'doc/README.html"'+(currentFile==='README'?' class="active"':'')+'>📖 文档首页</a></li>';
-for(var i=0;i<nList.length;i++){
-var nm=nList[i];
-html+='<li><a href="'+base+'doc/'+nm+'.html"'+(nm===currentFile?' class="active"':'')+'>'+nm+'</a></li>';
-}
-html+='</ul></nav><div class="sidebar-toggle" onclick="document.getElementById(\'sidebar\').classList.toggle(\'open\')">☰</div>';
-// 将 body 原有内容移入 page-content 容器;
-var body=document.body;
-var contentWrap=document.createElement('div');contentWrap.className='page-content';
-while(body.firstChild){contentWrap.appendChild(body.firstChild);}
-body.appendChild(contentWrap);
-// 在 body 最前方插入侧边栏;
-body.insertAdjacentHTML('afterbegin',html);
-})();
-</script>
-JS_EOF
-
-# 替换 JS 中的占位符
-sed -i "s|DOC_LIST|$DOC_LIST|g" /tmp/sidebar_inject.js
-
-# 8. 在所有 HTML 的 </body> 之前注入侧边栏 JS
-# 用 python 或简单的 shell 替换, 兼容所有 sed 版本
-echo "[build-pages] Injecting sidebar JS into HTML files..."
+# 7. 遍历所有 HTML 文件, 注入侧边栏静态 HTML 和 page-content 容器
+# 通过在构建时将 HTML 结构直接写入, 消除对运行时 JS 生成侧边栏的依赖;
+# 这样即使 GitHub Pages 的 CSP 限制内联脚本, 侧边栏依然正常显示;
+echo "[build-pages] Injecting sidebar into HTML files..."
 for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
     if [ ! -f "$html_file" ]; then
         echo "[WARNING] File not found: $html_file, skipping"
         continue
     fi
-    # 方法: 在 </body> 前插入 JS, 使用 awk 兼容所有平台
-    awk '{
-        if ($0 ~ /<\/body>/) {
-            while ((getline line < "/tmp/sidebar_inject.js") > 0) print line
-            close("/tmp/sidebar_inject.js")
-        }
-        print
-    }' "$html_file" > "${html_file}.tmp" && mv "${html_file}.tmp" "$html_file"
-done
 
-# 清理临时文件
-rm -f /tmp/sidebar_inject.js
+    # 判断是首页还是 doc 页面, 决定链接前缀和首页 href;
+    case "$html_file" in
+        */index.html)
+            link_prefix="doc/"
+            home_href="index.html"
+            ;;
+        */doc/*.html)
+            link_prefix=""
+            home_href="../index.html"
+            ;;
+    esac
+
+    base_name=$(basename "$html_file" .html)
+
+    # 构造侧边栏 HTML 字符串(侧边栏 + 汉堡菜单 + page-content 容器);
+    # 注意: 汉堡菜单使用 <input type="checkbox"> + <label> 纯 CSS 实现,
+    #       不依赖 JS onclick, 兼容 CSP;
+    #       所有链接使用相对路径(构建时已知首页或doc页面), 前后一致;
+    build_sidebar="
+<input type=\"checkbox\" id=\"sidebar-toggler\" class=\"sidebar-toggler-input\">
+<nav class=\"sidebar\" id=\"sidebar\">
+<div class=\"sidebar-header\"><a href=\"${home_href}\">🏠 首页</a></div>
+<ul>
+<li class=\"sidebar-section\">📄 详细文档</li>"
+
+    # 文档首页 README 作为第一条(高亮匹配当前页面);
+    if [ "$base_name" = "README" ]; then
+        build_sidebar="${build_sidebar}
+<li><a href=\"${link_prefix}README.html\" class=\"active\">📖 文档首页</a></li>"
+    else
+        build_sidebar="${build_sidebar}
+<li><a href=\"${link_prefix}README.html\">📖 文档首页</a></li>"
+    fi
+
+    # 其余 doc 链接;
+    for dname in $DOC_NAMES; do
+        [ -z "$dname" ] && continue
+        if [ "$base_name" = "$dname" ]; then
+            build_sidebar="${build_sidebar}
+<li><a href=\"${link_prefix}${dname}.html\" class=\"active\">${dname}</a></li>"
+        else
+            build_sidebar="${build_sidebar}
+<li><a href=\"${link_prefix}${dname}.html\">${dname}</a></li>"
+        fi
+    done
+
+    build_sidebar="${build_sidebar}
+</ul>
+</nav>
+<label for=\"sidebar-toggler\" class=\"sidebar-toggle\">☰</label>
+<div class=\"page-content\">
+"
+
+    # 使用 awk 一次性完成注入:
+    #   1. 在 <body> 之后插入侧边栏 HTML
+    #   2. 在 </body> 之前插入 </div> 关闭 page-content 容器
+    awk -v sidebar="$build_sidebar" '
+    {
+        if ($0 ~ /<body[^>]*>/) {
+            print
+            print sidebar
+        } else if ($0 ~ /<\/body>/) {
+            print "</div>"
+            print
+        } else {
+            print
+        }
+    }
+    ' "$html_file" > "${html_file}.tmp" && mv "${html_file}.tmp" "$html_file"
+
+    echo "[OK] Injected sidebar into: $html_file"
+done
 
 echo "[build-pages] Done! Output in: $OUTPUT_DIR"
