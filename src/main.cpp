@@ -11,13 +11,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include "RunTime.hpp"
-#include "YoloObject.h"
 #include "args.hpp"
+#include "detector/RunTime.hpp"
+#include "detector/YoloObject.h"
+#include "detector/version.hpp"
 #include "logging.hpp"
 #include "myFilesystem.hpp"
 #include "types.hpp"
-#include "version.hpp"
 
 struct ArgsConfig
 {

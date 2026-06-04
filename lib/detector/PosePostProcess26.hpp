@@ -11,7 +11,7 @@
 #ifndef __POSEPOSTPROCESS26__H__
 #define __POSEPOSTPROCESS26__H__
 
-#include "BasePostProcess.hpp"
+#include "detector/BasePostProcess.hpp"
 
 namespace yolo
 {

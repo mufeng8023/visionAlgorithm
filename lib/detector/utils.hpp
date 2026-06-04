@@ -20,7 +20,7 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "NetConfig.hpp"
+#include "detector/NetConfig.hpp"
 #include "ini_parser.hpp"
 #include "logging.hpp"
 #include "types.hpp"

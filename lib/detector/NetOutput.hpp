@@ -16,7 +16,7 @@
 #include <string>
 #include <vector>
 
-#include "types.hpp"  // 类型定义
+#include "types.hpp"
 
 namespace yolo
 {

@@ -11,17 +11,17 @@
 #ifndef __RUNTIME__H__
 #define __RUNTIME__H__
 
-#include "DetPostProcess26.hpp"
-#include "DetPostProcessV5.hpp"
-#include "DetPostProcessV8.hpp"
-#include "OpencvNet.hpp"
-#include "PosePostProcess26.hpp"
-#include "PosePostProcessV5.hpp"
-#include "PosePostProcessV8.hpp"
-#include "YoloObject.h"
-#include "draw_result.hpp"
+#include "detector/DetPostProcess26.hpp"
+#include "detector/DetPostProcessV5.hpp"
+#include "detector/DetPostProcessV8.hpp"
+#include "detector/OpencvNet.hpp"
+#include "detector/PosePostProcess26.hpp"
+#include "detector/PosePostProcessV5.hpp"
+#include "detector/PosePostProcessV8.hpp"
+#include "detector/YoloObject.h"
+#include "detector/draw_result.hpp"
+#include "detector/utils.hpp"
 #include "logging.hpp"
-#include "utils.hpp"
 
 namespace yolo
 {

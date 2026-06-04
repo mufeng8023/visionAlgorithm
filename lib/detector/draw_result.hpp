@@ -21,8 +21,9 @@
 
 #include <opencv2/opencv.hpp>
 
-#include "NetConfig.hpp"
-#include "YoloObject.h"
+#include "common.hpp"
+#include "detector/NetConfig.hpp"
+#include "detector/YoloObject.h"
 #include "types.hpp"
 
 namespace yolo

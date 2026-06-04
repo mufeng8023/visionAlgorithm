@@ -11,7 +11,7 @@
 #ifndef __OPENCVNET__H__
 #define __OPENCVNET__H__
 
-#include "BaseNet.hpp"
+#include "detector/BaseNet.hpp"
 #include "logging.hpp"
 
 namespace yolo

@@ -11,7 +11,7 @@
 #ifndef __POSEPOSTPROCESSV8__H__
 #define __POSEPOSTPROCESSV8__H__
 
-#include "BasePostProcess.hpp"
+#include "detector/BasePostProcess.hpp"
 
 namespace yolo
 {

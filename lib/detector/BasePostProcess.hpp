@@ -17,10 +17,10 @@
 #include <string>
 #include <vector>
 
-#include "NetConfig.hpp"
-#include "NetOutput.hpp"
-#include "ObjectBuffer.hpp"
 #include "common.hpp"
+#include "detector/NetConfig.hpp"
+#include "detector/NetOutput.hpp"
+#include "detector/ObjectBuffer.hpp"
 #include "logging.hpp"
 
 namespace yolo
