@@ -56,7 +56,7 @@ done
 
 cat /tmp/sidebar_top.html /tmp/sidebar_items.html > /tmp/sidebar.html
 echo '</ul></nav>' >> /tmp/sidebar.html
-echo '<div class="sidebar-toggle" onclick="document.getElementById(\'sidebar\').classList.toggle(\'open\')">☰</div>' >> /tmp/sidebar.html
+echo "<div class=\"sidebar-toggle\" onclick=\"document.getElementById('sidebar').classList.toggle('open')\">☰</div>" >> /tmp/sidebar.html
 
 # 对每个 HTML 文件注入侧边栏, 并包装内容
 for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
