@@ -22,16 +22,15 @@ cp "$CSS_SRC" "$OUTPUT_DIR/css/style.css"
 # 3. 转换 README.md 为首页 index.html
 pandoc README.md -f markdown -t html -s \
     --metadata title="visionAlgorithm" \
-    --metadata lang="zh-CN" \
     -c css/style.css \
     -o "$OUTPUT_DIR/index.html"
 
 # 4. 转换 doc/ 下所有 markdown 文件为 HTML
+echo "[build-pages] Converting markdown to HTML..."
 for md_file in doc/*.md; do
     base_name=$(basename "$md_file" .md)
     pandoc "$md_file" -s \
         --metadata title="${base_name}" \
-        --metadata lang="zh-CN" \
         -c ../css/style.css \
         -o "$OUTPUT_DIR/doc/${base_name}.html"
 done
@@ -39,44 +38,72 @@ done
 # 5. 修复 markdown 内部链接(.md)为 .html
 find "$OUTPUT_DIR" -name '*.html' -exec sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' {} +
 
-# 6. 注入侧边栏导航
-# 生成侧边栏顶部(首页链接)
-cat > /tmp/sidebar_top.html << 'SIDEBAR_EOF'
-<nav class="sidebar" id="sidebar">
-<div class="sidebar-header"><a href="../index.html">🏠 首页</a></div>
-<ul>
-<li class="sidebar-section">📄 详细文档</li>
-SIDEBAR_EOF
-
-# 生成每个文档的侧边栏链接
+# 6. 收集所有 doc 文件名
+echo "[build-pages] Collecting doc filenames..."
+DOC_LIST=""
 for html_file in "$OUTPUT_DIR"/doc/*.html; do
-    name=$(basename "$html_file" .html)
-    echo "<li><a href=\"${name}.html\">${name}</a></li>" >> /tmp/sidebar_items.html
+    if [ -f "$html_file" ]; then
+        name=$(basename "$html_file" .html)
+        if [ -z "$DOC_LIST" ]; then
+            DOC_LIST="\"${name}\""
+        else
+            DOC_LIST="${DOC_LIST},\"${name}\""
+        fi
+    fi
 done
+echo "[build-pages] Doc files found: $DOC_LIST"
 
-cat /tmp/sidebar_top.html /tmp/sidebar_items.html > /tmp/sidebar.html
-echo '</ul></nav>' >> /tmp/sidebar.html
-echo "<div class=\"sidebar-toggle\" onclick=\"document.getElementById('sidebar').classList.toggle('open')\">☰</div>" >> /tmp/sidebar.html
+# 7. 生成侧边栏 JS 文件
+cat > /tmp/sidebar_inject.js << 'JS_EOF'
+<script>
+(function(){
+var nList=[DOC_LIST];
+// 从当前路径判断: 首页(根目录)链接需要加 doc/ 前缀, doc页无需前缀
+var isDocIndex=window.location.pathname.indexOf('/doc/')!==-1;
+var p2=window.location.pathname.split('/');
+var lastPart=p2[p2.length-1];
+var isRootIndex=(lastPart===''||lastPart==='index.html');
+var prefix='';
+if(!isDocIndex&&!isRootIndex){prefix='doc/';}
+var ih=isDocIndex?'../index.html':'index.html';
+var cF=lastPart.replace('.html','');
+var h='<nav class="sidebar" id="sidebar"><div class="sidebar-header"><a href="'+ih+'">🏠 首页</a></div><ul><li class="sidebar-section">📄 详细文档</li>';
+for(var i=0;i<nList.length;i++){
+var nm=nList[i];
+h+='<li><a href="'+prefix+nm+'.html"'+(nm===cF?' class="active"':'')+'>'+nm+'</a></li>';
+}
+h+='</ul></nav><div class="sidebar-toggle" onclick="document.getElementById(\'sidebar\').classList.toggle(\'open\')">☰</div>';
+var b=document.body;
+var cw=document.createElement('div');cw.className='page-content';
+while(b.firstChild){cw.appendChild(b.firstChild);}
+b.appendChild(cw);
+b.insertAdjacentHTML('afterbegin',h);
+})();
+</script>
+JS_EOF
 
-# 对每个 HTML 文件注入侧边栏, 并包装内容
+# 替换 JS 中的占位符
+sed -i "s|DOC_LIST|$DOC_LIST|g" /tmp/sidebar_inject.js
+
+# 8. 在所有 HTML 的 </body> 之前注入侧边栏 JS
+# 用 python 或简单的 shell 替换, 兼容所有 sed 版本
+echo "[build-pages] Injecting sidebar JS into HTML files..."
 for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
-    # 注入侧边栏和 toggle 按钮到 <body> 之后
-    sed -i '/^<body>/{
-        r /tmp/sidebar.html
-        a <div class="page-content">
-    }' "$html_file"
-
-    # 在 </body> 之前关闭 .page-content
-    sed -i 's|</body>|</div></body>|' "$html_file"
-done
-
-# 首页的侧边栏链接路径调整为根目录
-sed -i 's|href="\.\./index\.html"|href="index.html"|g' "$OUTPUT_DIR"/index.html
-for html_file in "$OUTPUT_DIR"/doc/*.html; do
-    sed -i 's|href="\.\./index\.html"|href="../index.html"|g' "$html_file"
+    if [ ! -f "$html_file" ]; then
+        echo "[WARNING] File not found: $html_file, skipping"
+        continue
+    fi
+    # 方法: 在 </body> 前插入 JS, 使用 awk 兼容所有平台
+    awk '{
+        if ($0 ~ /<\/body>/) {
+            while ((getline line < "/tmp/sidebar_inject.js") > 0) print line
+            close("/tmp/sidebar_inject.js")
+        }
+        print
+    }' "$html_file" > "${html_file}.tmp" && mv "${html_file}.tmp" "$html_file"
 done
 
 # 清理临时文件
-rm -f /tmp/sidebar_top.html /tmp/sidebar_items.html /tmp/sidebar.html
+rm -f /tmp/sidebar_inject.js
 
 echo "[build-pages] Done! Output in: $OUTPUT_DIR"
