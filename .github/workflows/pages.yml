@@ -1,41 +1,50 @@
-# Node.js 20 将于 2026-09-16 从 runner 中移除, 届时需将 actions 升级至支持 Node.js 24 的版本;
-# 参考: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
-name: GitHub Pages
+# GitHub Pages 部署工作流
+# 触发条件: 推送到 gh-pages 分支时自动构建并部署
+name: Deploy GitHub Pages
 
 on:
     push:
         branches:
             - gh-pages
 
+    # 允许手动触发
+    workflow_dispatch:
+
+# 设置 GITHUB_TOKEN 权限以部署到 Pages
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+# 只允许一个并发部署, 避免旧部署覆盖新部署
+concurrency:
+    group: "pages"
+    cancel-in-progress: true
+
 jobs:
-    build:
+    build-and-deploy:
         runs-on: ubuntu-latest
-        container:
-            image: alpine:3.22.4
-        steps:
-            - uses: actions/checkout@v4
-
-            - name: Install pandoc
-              run: apk add --no-cache pandoc
-
-            - name: Build pages with shared script
-              run: sh scripts/build-pages.sh
-
-            - name: Upload Pages Artifact
-              uses: actions/upload-pages-artifact@v3
-              with:
-                  path: ./public
-
-    deploy:
-        needs: build
-        permissions:
-            pages: write
-            id-token: write
         environment:
             name: github-pages
             url: ${{ steps.deployment.outputs.page_url }}
-        runs-on: ubuntu-latest
+
         steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Install pandoc
+              run: sudo apt-get update && sudo apt-get install -y pandoc
+
+            - name: Build Pages
+              run: sh scripts/build-pages-gh.sh
+
+            - name: Upload artifact
+              uses: actions/upload-pages-artifact@v3
+              with:
+                  path: public
+
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v4
