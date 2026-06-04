@@ -17,6 +17,7 @@
 #include "logging.hpp"
 #include "myFilesystem.hpp"
 #include "types.hpp"
+#include "version.hpp"
 
 struct ArgsConfig
 {
@@ -42,6 +43,8 @@ int32 parser_args(int argc, char* argv[])
     args::ArgumentParser parser("visionAlgorithm", "A simple vision algorithm tool.");
     // 添加帮助标志, 用户可以通过 -h 或 --help 查看帮助信息
     args::HelpFlag help(parser, "help", "显示此帮助菜单", {'h', "help"});
+    // 添加版本标志, 用户可以通过 -v 或 --version 查看版本信息
+    args::Flag version(parser, "version", "显示版本信息", {'v', "version"});
 
     // 添加值标记,
     // args::ValueFlag<std::string> cfg_path(parser,            命令行解析实例
@@ -106,6 +109,15 @@ int32 parser_args(int argc, char* argv[])
         // 如果解析成功, parser 对象将包含所有解析后的参数值
         // 如果解析失败, 将抛出异常
         parser.ParseCLI(argc, argv);
+
+        if (args::get(version))
+        {
+            std::cout << "version: " << yolo::version_string() << std::endl;
+            std::cout << "build time: " << yolo::build_time() << std::endl;
+            std::cout << "git branch: " << yolo::git_branch() << std::endl;
+            std::cout << "git hash: " << yolo::git_hash() << std::endl;
+            return 1;
+        }
 
         // ArgsConfig.cfg_path = args::get(cfg_path);
         // ArgsConfig.box = args::get(box);
@@ -220,6 +232,12 @@ int32 main(int argc, char* argv[])
     {
         throw std::runtime_error("日志的配置文件路径不能为空");
     }
+
+    // 输出版本信息
+    LOG_DEFAULT_INFO("version: %s", yolo::version_string());
+    LOG_DEFAULT_INFO("build time: %s", yolo::build_time());
+    LOG_DEFAULT_INFO("git branch: %s", yolo::git_branch());
+    LOG_DEFAULT_INFO("git hash: %s", yolo::git_hash());
 
     // 初始化模型运行时
     yolo::RunTime run_time(ArgsConfig.model_ini_path,    // 模型配置文件路径
