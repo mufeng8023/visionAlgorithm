@@ -78,7 +78,6 @@ include_directories(${CMAKE_SOURCE_DIR}
     ${OpenCV_INCLUDE_DIRS}
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib
-    ${CMAKE_SOURCE_DIR}/lib/detector
     /usr/include/
 )
 
