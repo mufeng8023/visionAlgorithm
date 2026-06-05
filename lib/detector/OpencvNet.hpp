@@ -12,7 +12,6 @@
 #define __OPENCVNET__H__
 
 #include "detector/BaseNet.hpp"
-#include "logging.hpp"
 
 namespace yolo
 {
@@ -130,6 +129,9 @@ class OpencvNet : public BaseNet
     {
         try
         {
+            // 加载模型测试耗时
+            TIMER_START("load_model");
+
             // 加载网络
             this->net = cv::dnn::readNetFromONNX(param.onnx_path);
 
@@ -191,6 +193,9 @@ class OpencvNet : public BaseNet
             }  // GPU/CPU 判断
 
             this->out_layer_names = this->net.getUnconnectedOutLayersNames();
+
+            // 记录模型加载时间
+            LOG_DEFAULT_INFO("load model cost time: %s", TIMER_ELAPSED_STR("load_model").c_str());
 
             return true;
         }  // try
@@ -256,8 +261,13 @@ class OpencvNet : public BaseNet
         // 这里是推理的核心逻辑, 需要根据模型的输入输出进行调整
         try
         {
+            // 预处理时间
+            TIMER_START_DEBUG(DET_PROCESS_TIME_NAME);
+
             // 预处理输入图像
             this->preprocess(images_bgr);
+            // 记录预处理时间, 方便调试
+            LOG_DEFAULT_DEBUG("preprocess cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_PROCESS_TIME_NAME).c_str());
 
             if (this->inputBatch.empty())
             {
@@ -272,8 +282,12 @@ class OpencvNet : public BaseNet
             // 前向推理, 获取输出特征图
             std::vector<cv::Mat> net_outputs;
 
+            // 推理时间
+            TIMER_START_DEBUG(DET_FORWARD_TIME_NAME);
             // !默认的情况: 输入是uint8, 输出是float32
             this->net.forward(net_outputs, this->out_layer_names);
+            // 记录推理时间, 方便调试
+            LOG_DEFAULT_DEBUG("opencv_forward cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_FORWARD_TIME_NAME).c_str());
 
             if (net_outputs.empty())
             {
@@ -290,6 +304,9 @@ class OpencvNet : public BaseNet
 
                 return false;
             }
+
+            // 测试 数据转换的时间
+            TIMER_START_DEBUG("net_out_data_convert");
 
             // 使用两层 for 动态 适配
             // OpenCV 输出的特征图是按照 节点名称排序的,
@@ -340,6 +357,10 @@ class OpencvNet : public BaseNet
                     }
                 }  // for 遍历 nl 动态适配特征图的不同size的结果
             }  // for 遍历 net_outputs
+
+            // 记录数据转换的时间, 方便调试
+            LOG_DEFAULT_DEBUG("net_out_data_convert cost time: %s",
+                              TIMER_ELAPSED_STR_DEBUG("net_out_data_convert").c_str());
 
             return true;
         }  // try

@@ -20,7 +20,12 @@
 #include "common.hpp"
 #include "detector/NetConfig.hpp"
 #include "detector/NetOutput.hpp"
+#include "logging.hpp"
+#include "timer.hpp"
 #include "types.hpp"
+
+#define DET_PROCESS_TIME_NAME "det_preprocess"  // 预处理时间的计时器名称
+#define DET_FORWARD_TIME_NAME "det_forward"     // 前向传播时间的计时器名称
 
 namespace yolo
 {

@@ -282,6 +282,9 @@ class DetPostProcessV5 : public BasePostProcess
 
     void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) override
     {
+        // 记录后处理时间
+        TIMER_START_DEBUG(DET_POSTPROCESS_TIME_NAME);
+
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (uint32 i = 0; i < this->nl; ++i)
         {
@@ -295,8 +298,17 @@ class DetPostProcessV5 : public BasePostProcess
             );
         }
 
+        LOG_DEFAULT_DEBUG("%s cost time: %s", this->to_string().c_str(),
+                          TIMER_ELAPSED_STR_DEBUG(DET_POSTPROCESS_TIME_NAME).c_str());
+
+        // 记录 NMS 时间
+        TIMER_START_DEBUG(DET_NMS_TIME_NAME);
+
         // 判断一下, 如果没有检测目标, 就直接返回, 不会进行 NMS
         non_max_suppression(results, this->iou_thrs, this->agnostic);
+
+        // 记录 NMS 时间
+        LOG_DEFAULT_DEBUG("non_max_suppression cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_NMS_TIME_NAME).c_str());
     }
 };
 }  // namespace yolo

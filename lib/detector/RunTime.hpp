@@ -23,6 +23,10 @@
 #include "detector/utils.hpp"
 #include "logging.hpp"
 
+#define DET_RUNTIME_PREPROCESS_TIME_NAME "det_runtime_preprocess_time"
+#define DET_RUNTIME_DATA_TRANS_TIME_NAME "det_runtime_data_trans_time"
+#define DET_RUNTIME_ALL_TIME_NAME "det_runtime_all_time"
+
 namespace yolo
 {
 
@@ -282,6 +286,10 @@ class RunTime
                     std::vector<std::vector<YoloObject>>& det_results)
     {
         LOG_DEFAULT_INFO("RunTime Start!");
+        // !记录所有时间
+        TIMER_START(DET_RUNTIME_ALL_TIME_NAME);
+        // !记录预处理时间
+        TIMER_START_DEBUG(DET_RUNTIME_PREPROCESS_TIME_NAME);
 
         // 添加图片预处理 resize, 等比例缩放到 目标shape
         for (uint32 i = 0; i < images_bgr.size(); ++i)
@@ -293,11 +301,17 @@ class RunTime
             );
         }
 
+        LOG_DEFAULT_DEBUG("Preprocess cost time: %s",
+                          TIMER_ELAPSED_STR_DEBUG(DET_RUNTIME_PREPROCESS_TIME_NAME).c_str());
+
         // 推理模型
         this->net->run(this->imgs_resized, this->net_outputs);
 
         // 后处理
         this->postProcess->run(this->net_outputs, this->results);
+
+        // !记录数据转换时间
+        TIMER_START_DEBUG(DET_RUNTIME_DATA_TRANS_TIME_NAME);
 
         // 先对 det_results 进行初始化, 后面直接使用索引访问
         // 下面循环直接通过 索引访问并覆盖各 batch 的数据, 避免重复释放和申请外层内存
@@ -439,6 +453,13 @@ class RunTime
             LOG_DEFAULT_DEBUG("batch: %d, buffer clear!", batch_idx);
 
         }  // for this->config.batch_size
+
+        // !记录数据转换时间
+        LOG_DEFAULT_DEBUG("batch: %d, data convert time: %s", this->config.batch_size,
+                          TIMER_ELAPSED_STR_DEBUG(DET_RUNTIME_DATA_TRANS_TIME_NAME).c_str());
+        LOG_DEFAULT_INFO("%s, batch: %d, run time: %s", this->config.model_name.c_str(), this->config.batch_size,
+                         TIMER_ELAPSED_STR(DET_RUNTIME_ALL_TIME_NAME).c_str());
+
     }  // operator()
 
     /***

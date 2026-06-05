@@ -396,6 +396,9 @@ class PosePostProcess26 : public BasePostProcess
 
     void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) override
     {
+        // 记录后处理时间
+        TIMER_START_DEBUG(DET_POSTPROCESS_TIME_NAME);
+
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (uint32 i = 0; i < this->nl; ++i)
         {
@@ -409,6 +412,12 @@ class PosePostProcess26 : public BasePostProcess
             );
         }
 
+        LOG_DEFAULT_DEBUG("%s cost time: %s", this->to_string().c_str(),
+                          TIMER_ELAPSED_STR_DEBUG(DET_POSTPROCESS_TIME_NAME).c_str());
+
+        // 记录 NMS 时间
+        TIMER_START_DEBUG(DET_NMS_TIME_NAME);
+
         // 因为是端到端的 yolo26 不需要进行 NMS, 置信度大于 conf_thr 的都是最终的预测结果
         // 虽然不需要进行 nms 但是需要根据分数排序, 之后再取前 max_det 个 作为结果
         // 在 this->process_one 中不能对输出结果使用 max_det 进行拦截, 否则可能会导致输出结果丢失
@@ -418,6 +427,9 @@ class PosePostProcess26 : public BasePostProcess
                             this->max_det,   //
                             true             // end2end 标志必须是 true
         );
+
+        // 记录 NMS 时间
+        LOG_DEFAULT_DEBUG("non_max_suppression cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_NMS_TIME_NAME).c_str());
     }
 };
 }  // namespace yolo

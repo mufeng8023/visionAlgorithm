@@ -22,6 +22,10 @@
 #include "detector/NetOutput.hpp"
 #include "detector/ObjectBuffer.hpp"
 #include "logging.hpp"
+#include "timer.hpp"
+
+#define DET_POSTPROCESS_TIME_NAME "det_postprocess"  // 后处理时间的计时器名称
+#define DET_NMS_TIME_NAME "det_nms"                  // nms时间的计时器名称
 
 namespace yolo
 {
@@ -37,7 +41,7 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
 {
     // 获取所有目标的个数
     uint32 count = output.get_obj_count();
-    LOG_DEFAULT_INFO("nms_ops: output.size = %d", count);
+    LOG_DEFAULT_DEBUG("before nms_ops: output.size = %d", count);
 
     // 如果只有一个结果, 则直接返回
     if (count <= 1)
@@ -137,7 +141,7 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
         return;
     }
 
-    LOG_DEFAULT_DEBUG("nms_ops: output.size = %d", output.get_obj_count());
+    LOG_DEFAULT_DEBUG("after nms_ops: output.size = %d", output.get_obj_count());
 }
 
 /***
@@ -150,16 +154,18 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
 {
     // 获取所有目标的个数
     uint32 count = output.get_obj_count();
-    LOG_DEFAULT_INFO("nms_ops: output.size = %d", count);
+    LOG_DEFAULT_DEBUG("end2end_post: output.size = %d", count);
+
     if (count <= max_det)
     {
+        LOG_DEFAULT_DEBUG("end2end_post: output.size = %d, no need to end2end_post", count);
         return;
     }
 
     // 保证目标都是有效的
     if (output.get_valid_count() != output.get_obj_count())
     {
-        LOG_DEFAULT_DEBUG("end2end_nms: output.size = %d, valid_count = %d", output.get_obj_count(),
+        LOG_DEFAULT_DEBUG("end2end_post: output.size = %d, valid_count = %d", output.get_obj_count(),
                           output.get_valid_count());
 
         // 压缩物理缓存区, 将目标变得连续
@@ -169,8 +175,8 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
         }
         catch (const std::exception& e)
         {
-            LOG_DEFAULT_ERROR("end2end_nms: %s", e.what());
-            throw std::runtime_error("end2end_nms: ObjectBuffer compact error");
+            LOG_DEFAULT_ERROR("end2end_post: %s", e.what());
+            throw std::runtime_error("end2end_post: ObjectBuffer compact error");
         }
     }
 
@@ -191,7 +197,7 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
     }
     catch (const std::exception& e)
     {
-        LOG_DEFAULT_ERROR("end2end_nms: %s", e.what());
+        LOG_DEFAULT_ERROR("end2end_post output.compact error: %s", e.what());
     }
 }
 
