@@ -42,9 +42,9 @@ jobs:
             - name: Build Pages
               run: |
                   # 显式赋予脚本执行权限
-                  chmod +x scripts/build-pages-gh.sh
-                  # 使用 bash 运行脚本，确保兼容 IFS、字符串拼接等高级 Shell 语法
-                  bash scripts/build-pages-gh.sh
+                  chmod +x scripts/build-pages.sh
+                  # 使用 bash 运行多级目录隔离版脚本
+                  bash scripts/build-pages.sh
 
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v3

@@ -2,9 +2,12 @@ pages:
     stage: deploy
     image: alpine:3.22.4
     before_script:
-        - apk add --no-cache pandoc
+        # 核心修改：在 Alpine 容器中除了装 pandoc, 必须加装 bash 和 coreutils(提供标准 tr 支持)
+        - apk add --no-cache pandoc bash coreutils
     script:
-        - sh scripts/build-pages.sh
+        - chmod +x scripts/build-pages.sh
+        # 显式指定用 bash 运行脚本
+        - bash scripts/build-pages.sh
     artifacts:
         paths:
             - public
