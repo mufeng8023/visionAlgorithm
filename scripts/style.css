@@ -172,6 +172,7 @@ a:hover {
     color: var(--accent-hover);
 }
 
+/* ===== 优化后的行内代码与代码块控制 ===== */
 code {
     font-family: var(--font-mono);
     font-size: 85%;
@@ -179,6 +180,8 @@ code {
     border-radius: 4px;
     background-color: var(--code-bg);
     color: #cf222e;
+    /* 保证长行内代码在小屏下可以安全折行 */
+    word-break: break-word;
 }
 pre {
     font-family: var(--font-mono);
@@ -188,8 +191,13 @@ pre {
     border-radius: 6px;
     background-color: var(--code-bg);
     border: 1px solid var(--border-color);
-    overflow-x: auto;
     margin-bottom: 16px;
+
+    /* 核心: 自动换行逻辑 */
+    white-space: pre-wrap; /* 保持空格, 但当单行超出容器边界时自动折行 */
+    word-wrap: break-word; /* 强制在长英文/符号边界处断行 */
+    word-break: break-all; /* 强制在任何字符间断行, 彻底消灭横向滚动条 */
+    overflow-x: visible; /* 换行后允许溢出隐藏改为可见 */
 }
 pre code {
     padding: 0;
@@ -197,6 +205,9 @@ pre code {
     background: none;
     color: inherit;
     font-size: inherit;
+    /* 联动继承 pre 容器的换行逻辑 */
+    white-space: pre-wrap;
+    word-break: break-all;
 }
 
 /* 代码块中的语法高亮(由 pandoc 生成的) */
