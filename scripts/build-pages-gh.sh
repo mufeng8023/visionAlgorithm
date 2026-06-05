@@ -1,11 +1,12 @@
-#!/bin/sh
+#!/bin/bash
 # 构建 GitHub Pages 的脚本
+# 触发环境: 运行于 gh-pages 分支的 GitHub Actions 中
 # 与 GitLab 版本的区别:
 #   1. 使用独立的 GitHub Pages 工作流触发
 #   2. 生成具有完整树形目录结构的侧边栏(从 doc/README.md 解析分类层次)
 #   3. 页面内解析 h2/h3 标题作为"页面目录"子节点, 形成完整文档树
 # 依赖: pandoc, sed, awk, grep
-# 用法: sh scripts/build-pages-gh.sh
+# 用法: bash scripts/build-pages-gh.sh
 
 set -e
 
@@ -22,55 +23,77 @@ mkdir -p "$OUTPUT_DIR/css"
 mkdir -p "$OUTPUT_DIR/doc"
 
 # 2. 复制 CSS 文件到产物目录
-cp "$CSS_SRC" "$OUTPUT_DIR/css/style.css"
+if [ -f "$CSS_SRC" ]; then
+    cp "$CSS_SRC" "$OUTPUT_DIR/css/style.css"
+else
+    echo "[ERROR] CSS file not found at $CSS_SRC"
+    exit 1
+fi
 
-# 3. 转换 README.md 为首页 index.html
-pandoc README.md -f markdown -t html -s \
-    --metadata title="visionAlgorithm" \
-    -c css/style.css \
-    --metadata pagetitle="visionAlgorithm" \
-    -o "$OUTPUT_DIR/index.html"
+# 3. 转换根目录 README.md 为首页 index.html
+if [ -f "README.md" ]; then
+    pandoc README.md -f markdown -t html -s \
+        --metadata title="visionAlgorithm" \
+        -c css/style.css \
+        --metadata pagetitle="visionAlgorithm" \
+        -o "$OUTPUT_DIR/index.html"
+else
+    echo "[WARNING] Root README.md not found! Creating a default index.html"
+    echo "<html><head><link rel='stylesheet' href='css/style.css'></head><body><h1>visionAlgorithm</h1></body></html>" > "$OUTPUT_DIR/index.html"
+fi
 
 # 4. 转换 doc/ 下所有 markdown 文件为 HTML
 echo "[build-pages-gh] Converting markdown to HTML..."
-for md_file in "$DOC_SRC"/*.md; do
-    [ -f "$md_file" ] || continue
-    base_name=$(basename "$md_file" .md)
-    pandoc "$md_file" -s \
-        --metadata title="${base_name}" \
-        -c ../css/style.css \
-        -o "$OUTPUT_DIR/doc/${base_name}.html"
-done
+if [ -d "$DOC_SRC" ]; then
+    for md_file in "$DOC_SRC"/*.md; do
+        [ -f "$md_file" ] || continue
+        base_name=$(basename "$md_file" .md)
+        
+        # 如果 doc/README.md 仅仅用于导航, 不需要生成独立页面, 可以取消下面这行的注释：
+        # [ "$base_name" = "README" ] && continue
+
+        pandoc "$md_file" -s \
+            --metadata title="${base_name}" \
+            -c ../css/style.css \
+            -o "$OUTPUT_DIR/doc/${base_name}.html"
+    done
+else
+    echo "[WARNING] doc/ directory not found at $DOC_SRC"
+fi
+
 
 # 5. 修复 markdown 内部链接(.md)为 .html
-find "$OUTPUT_DIR" -name '*.html' -exec sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' {} +
+echo "[build-pages-gh] Fixing internal markdown links..."
+find "$OUTPUT_DIR" -name '*.html' -type f | while read -r html_path; do
+    sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' "$html_path"
+done
+
 
 # 6. 从 doc/README.md 中提取树状目录结构
-#    格式: "分类名:文档名1:文件名1 分类名:文档名2:文件名2 ..."
 echo "[build-pages-gh] Building tree structure from doc/README.md..."
 build_tree_entries() {
     current_section=""
     entries=""
-    while IFS= read -r line; do
-        case "$line" in
-            "## "*)
-                current_section=$(echo "$line" | sed 's/^## //')
-                ;;
-            "- ["*)
-                display_name=$(echo "$line" | sed -n 's/- \[\([^]]*\)\].*/\1/p')
-                filename=$(echo "$line" | sed -n 's/.*(\([^)]*\)\.md).*/\1/p')
-                if [ -n "$current_section" ] && [ -n "$filename" ]; then
-                    entries="${entries}${current_section}:${display_name}:${filename}
-"
-                fi
-                ;;
-        esac
-    done < "$DOC_SRC/README.md"
+    if [ -f "$DOC_SRC/README.md" ]; then
+        while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+                "## "*)
+                    current_section=$(echo "$line" | sed 's/^## //')
+                    ;;
+                "- ["*)
+                    display_name=$(echo "$line" | sed -n 's/- \[\([^]]*\)\].*/\1/p')
+                    filename=$(echo "$line" | sed -n 's/.*(\([^)]*\)\.md).*/\1/p')
+                    if [ -n "$current_section" ] && [ -n "$filename" ]; then
+                        entries="${entries}${current_section}:${display_name}:${filename}"$'\n'
+                    fi
+                    ;;
+            esac
+        done < "$DOC_SRC/README.md"
+    fi
     echo "$entries"
 }
 
 TREE_ENTRIES=$(build_tree_entries)
-echo "[build-pages-gh] Tree entries: $TREE_ENTRIES"
 
 # 7. 从生成的 HTML 文件中提取 h2/h3 的 id 和纯文本, 用作当前页面的目录
 #    使用 awk 从 HTML 中提取 <h2 id="xxx">text</h2> 或 <h3 id="xxx">text</h3>
@@ -140,10 +163,9 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
     # 按分类分组构建树节点
     prev_section=""
     section_items=""
-    old_ifs="$IFS"
-    IFS="
-"
-    for entry in $TREE_ENTRIES; do
+    
+    while IFS= read -r entry; do
+        [ -z "$entry" ] && continue
         section=$(echo "$entry" | cut -d: -f1)
         doc_name=$(echo "$entry" | cut -d: -f2)
         doc_file=$(echo "$entry" | cut -d: -f3)
@@ -153,11 +175,8 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
 <details class=\"tree-section\" open>
 <summary>📁 ${prev_section}</summary>
 <ul>"
-            # section_items 使用换行符分隔, 用 IFS 安全遍历
-            item_ifs="$IFS"
-            IFS="
-"
-            for item in $section_items; do
+            while IFS= read -r item; do
+                [ -z "$item" ] && continue
                 item_name=$(echo "$item" | cut -d: -f1)
                 item_file=$(echo "$item" | cut -d: -f2)
                 if [ "$base_name" = "$item_file" ]; then
@@ -167,8 +186,7 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
                 fi
                 build_sidebar="${build_sidebar}
 <li><a href=\"${link_prefix}${item_file}.html\"${active_class}>📄 ${item_name}</a></li>"
-            done
-            IFS="$item_ifs"
+            done <<< "$section_items"
             build_sidebar="${build_sidebar}
 </ul>
 </details>"
@@ -179,21 +197,18 @@ for html_file in "$OUTPUT_DIR"/index.html "$OUTPUT_DIR"/doc/*.html; do
         if [ -z "$section_items" ]; then
             section_items="${doc_name}:${doc_file}"
         else
-            section_items="${section_items}
-${doc_name}:${doc_file}"
+            section_items="${section_items}"$'\n'"${doc_name}:${doc_file}"
         fi
-    done
-    IFS="$old_ifs"
+    done <<< "$TREE_ENTRIES"
 
+    # 处理最后一组分类
     if [ -n "$prev_section" ] && [ -n "$section_items" ]; then
         build_sidebar="${build_sidebar}
 <details class=\"tree-section\" open>
 <summary>📁 ${prev_section}</summary>
 <ul>"
-        item_ifs="$IFS"
-        IFS="
-"
-        for item in $section_items; do
+        while IFS= read -r item; do
+            [ -z "$item" ] && continue
             item_name=$(echo "$item" | cut -d: -f1)
             item_file=$(echo "$item" | cut -d: -f2)
             if [ "$base_name" = "$item_file" ]; then
@@ -203,8 +218,7 @@ ${doc_name}:${doc_file}"
             fi
             build_sidebar="${build_sidebar}
 <li><a href=\"${link_prefix}${item_file}.html\"${active_class}>📄 ${item_name}</a></li>"
-        done
-        IFS="$item_ifs"
+        done <<< "$section_items"
         build_sidebar="${build_sidebar}
 </ul>
 </details>"

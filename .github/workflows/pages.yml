@@ -35,14 +35,21 @@ jobs:
                   fetch-depth: 0
 
             - name: Install pandoc
-              run: sudo apt-get update && sudo apt-get install -y pandoc
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y pandoc
 
             - name: Build Pages
-              run: sh scripts/build-pages-gh.sh
+              run: |
+                  # 显式赋予脚本执行权限
+                  chmod +x scripts/build-pages-gh.sh
+                  # 使用 bash 运行脚本，确保兼容 IFS、字符串拼接等高级 Shell 语法
+                  bash scripts/build-pages-gh.sh
 
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v3
               with:
+                  # 这里的路径必须与你脚本中生成的静态文件输出目录一致
                   path: public
 
             - name: Deploy to GitHub Pages
