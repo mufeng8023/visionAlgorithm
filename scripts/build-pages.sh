@@ -1,8 +1,5 @@
 #!/bin/bash
-# 构建 GitLab/GitHub Pages 的统一脚本 - 已适配多级目录清晰隔离版
-# 依赖: pandoc, sed, awk
-# 用法: bash scripts/build-pages.sh
-
+# 智能多级目录镜像构建脚本 - 完美支持以 README.md 作为目录首页与文件名控序
 set -e
 
 OUTPUT_DIR="${1:-public}"
@@ -10,155 +7,179 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CSS_SRC="$SCRIPT_DIR/style.css"
 DOC_SRC="$(cd "$SCRIPT_DIR/../doc" && pwd)"
 
-echo "[build-pages] Output dir: $OUTPUT_DIR"
-echo "[build-pages] CSS source: $CSS_SRC"
-echo "[build-pages] Doc source: $DOC_SRC"
+echo "[build-pages] Target Output dir: $OUTPUT_DIR"
+echo "[build-pages] Static CSS source: $CSS_SRC"
+echo "[build-pages] Markdown sources: $DOC_SRC"
 
-# 1. 创建输出目录
+# 1. 初始化根产物目录
 mkdir -p "$OUTPUT_DIR/css"
-mkdir -p "$OUTPUT_DIR/doc"
 
-# 2. 复制 CSS 文件到产物目录
+# 2. 部署全局 CSS 样式
 if [ -f "$CSS_SRC" ]; then
     cp "$CSS_SRC" "$OUTPUT_DIR/css/style.css"
 else
-    echo "[ERROR] CSS file not found at $CSS_SRC"
+    echo "[ERROR] CSS file missing at $CSS_SRC"
     exit 1
 fi
 
-# 3. 转换根目录 README.md (项目首页) 为首页 index.html
+# 3. 编译大项目首页 (根目录 README.md)
 if [ -f "README.md" ]; then
     pandoc README.md -f markdown -t html -s \
         --metadata title="visionAlgorithm" \
         -c css/style.css \
         -o "$OUTPUT_DIR/index.html"
 else
-    echo "[WARNING] Root README.md not found! Creating a default index.html"
     echo "<html><head><link rel='stylesheet' href='css/style.css'></head><body><h1>visionAlgorithm</h1></body></html>" > "$OUTPUT_DIR/index.html"
 fi
 
 # ========================================================
-# 4. 递归转换并收集多级目录结构
+# 4. 递归扫描、镜像编译并动态收集目录树
 # ========================================================
-echo "[build-pages] Converting markdown and identifying categories..."
-RAW_ENTRIES=""
+echo "[build-pages] Mirroring directory trees..."
+TMP_ENTRIES=".tmp_entries"
+rm -f "$TMP_ENTRIES"
 
 if [ -d "$DOC_SRC" ]; then
-    # 使用 find 深度为 2, 正好抓取 doc/ 目录下的第一层子文件夹（common, detector）
-    find "$DOC_SRC" -mindepth 2 -maxdepth 2 -name '*.md' -type f | while read -r md_file; do
+    # 深度解耦：支持 doc/ 下任意层级的 md 文件检索
+    find "$DOC_SRC" -name '*.md' -type f | while read -r md_file; do
+        # 计算相对于 doc/ 的相对路径 (例如: common/README.md 或 detector/task1/intro.md)
+        rel_path="${md_file#$DOC_SRC/}"
+        rel_dir=$(dirname "$rel_path")
         base_name=$(basename "$md_file" .md)
         
-        # 提取文件所在的父目录名称（如 common 或 detector）并转为大写作为展示区隔
-        dir_name=$(basename "$(dirname "$md_file")")
-        category=$(echo "$dir_name" | tr '[:lower:]' '[:upper:]')
-
-        # 统一扁平化输出到 public/doc/ 下, 确保样式和链接路径不被打乱
+        # 提取一级子目录作为大分类标签
+        category_dir=$(echo "$rel_dir" | cut -d'/' -f1)
+        category=$(echo "$category_dir" | tr '[:lower:]' '[:upper:]')
+        
+        # 核心规定：只要是 README.md，一律编译为 index.html 作为当前目录首页
+        if [ "$base_name" = "README" ]; then
+            target_name="index.html"
+            sort_key="00_README" # 赋予最高优先级，确保排序在最前面
+            display_name="🏠 分类首页 (README)"
+        else
+            target_name="${base_name}.html"
+            sort_key="${base_name}"
+            display_name="📄 ${base_name}"
+        fi
+        
+        # 映射并创建镜像输出目录
+        if [ "$rel_dir" = "." ]; then
+            target_dir="$OUTPUT_DIR/doc"
+            rel_path_from_public="doc/$target_name"
+        else
+            target_dir="$OUTPUT_DIR/doc/$rel_dir"
+            rel_path_from_public="doc/$rel_dir/$target_name"
+        fi
+        mkdir -p "$target_dir"
+        
+        # 动态数学计算：根据当前编译深度计算返回根目录的相对路径(如 ../../)
+        rel_dir_to_public="${target_dir#$OUTPUT_DIR/}"
+        to_root=$(echo "$rel_dir_to_public" | sed 's/[^/]\+/../g')/
+        
+        # 编译生成对应的 HTML 页面
         pandoc "$md_file" -s \
             --metadata title="${base_name}" \
-            -c ../css/style.css \
-            -o "$OUTPUT_DIR/doc/${base_name}.html"
-
-        # 排除导航用的 README, 将其余文件和对应分类存入临时变量
-        if [ "$base_name" != "README" ]; then
-            echo "${category}:${base_name}" >> .tmp_entries
-        fi
+            -c "${to_root}css/style.css" \
+            -o "$target_dir/$target_name"
+            
+        # 收集元数据：分类 | 排序键 | 显示名称 | 相对于 public 根的绝对路径
+        echo "${category}:${sort_key}:${display_name}:${rel_path_from_public}" >> "$TMP_ENTRIES"
     done
-else
-    echo "[WARNING] doc/ directory not found at $DOC_SRC"
 fi
 
-# 读取并排序捕获到的目录项（保证相同分类的文件聚集在一起）
-if [ -f .tmp_entries ]; then
-    RAW_ENTRIES=$(sort .tmp_entries)
-    rm -f .tmp_entries
+RAW_ENTRIES=""
+if [ -f "$TMP_ENTRIES" ]; then
+    # 完美实现：先按大分类聚合，同分类内严格按照文件名(sort_key)顺序显示
+    RAW_ENTRIES=$(sort "$TMP_ENTRIES")
+    rm -f "$TMP_ENTRIES"
 fi
 
-# 5. 修复 markdown 内部链接(.md)为 .html
-echo "[build-pages] Fixing internal markdown links..."
+# 5. 修复 Markdown 内部的相对跳转链接（如点击 README.md 自动去往 index.html）
+echo "[build-pages] Resolving internal hyperlinks..."
 find "$OUTPUT_DIR" -name '*.html' -type f | while read -r html_path; do
-    sed -i 's/\(href="[^"]*\)\.md"/\1.html"/g' "$html_path"
+    sed -e 's/README\.md/index.html/g' -e 's/\.md/\.html/g' "$html_path" > "${html_path}.tmp" && mv "${html_path}.tmp" "$html_path"
 done
 
 # ========================================================
-# 6. 遍历所有 HTML 文件, 动态注入带目录隔离的侧边栏
+# 6. 为所有镜像 HTML 注入高度路径自适应的折叠侧边栏
 # ========================================================
-echo "[build-pages] Injecting segmented sidebar into HTML files..."
+echo "[build-pages] Injecting adaptive collapse sidebars..."
 find "$OUTPUT_DIR" -name '*.html' -type f | while read -r html_file; do
-    # 判断是首页还是 doc 页面, 决定链接前缀和首页 href
-    case "$html_file" in
-        */index.html)
-            link_prefix="doc/"
-            home_href="index.html"
-            ;;
-        *)
-            link_prefix=""
-            home_href="../index.html"
-            ;;
-    esac
-
-    base_name=$(basename "$html_file" .html)
-
-    # 基础结构
-    build_sidebar="
-<input type=\"checkbox\" id=\"sidebar-toggler\" class=\"sidebar-toggler-input\">
+    
+    # 精准定位当前页面距离根部的阶梯深度
+    rel_to_public="${html_file#$OUTPUT_DIR/}"
+    dir_part=$(dirname "$rel_to_public")
+    if [ "$dir_part" = "." ]; then
+        TO_ROOT=""
+    else
+        TO_ROOT=$(echo "$dir_part" | sed 's/[^/]\+/../g')/
+    fi
+    
+    current_rel_path_from_public="${html_file#$OUTPUT_DIR/}"
+    
+    # 动态组装高内聚的 HTML 侧边栏
+    build_sidebar="<input type=\"checkbox\" id=\"sidebar-toggler\" class=\"sidebar-toggler-input\">
 <nav class=\"sidebar\" id=\"sidebar\">
-<div class=\"sidebar-header\"><a href=\"${home_href}\">🏠 首页</a></div>
+<div class=\"sidebar-header\"><a href=\"${TO_ROOT}index.html\">🏠 visionAlgorithm</a></div>
 <ul>"
 
-    # 文档首页 README 置顶
-    if [ "$base_name" = "README" ]; then
-        build_sidebar="${build_sidebar}
-<li><a href=\"${link_prefix}README.html\" class=\"active\">📖 文档首页</a></li>"
+    # 大项目大首页高亮判定
+    if [ "$current_rel_path_from_public" = "index.html" ]; then
+        build_sidebar="${build_sidebar}<li><a href=\"${TO_ROOT}index.html\" class=\"active\">📖 项目公告与首页</a></li>"
     else
-        build_sidebar="${build_sidebar}
-<li><a href=\"${link_prefix}README.html\">📖 文档首页</a></li>"
+        build_sidebar="${build_sidebar}<li><a href=\"${TO_ROOT}index.html\">📖 项目公告与首页</a></li>"
     fi
 
-    # 核心：解析 RAW_ENTRIES 并为不同文件夹注入“大写分类标题”
+    # 解析动态排序后的目录树数据
     prev_category=""
-    while IFS=: read -r cat name; do
-        [ -z "$cat" ] || [ -z "$name" ] && continue
+    while IFS=: read -r cat skey dname rpath; do
+        [ -z "$cat" ] || [ -z "$rpath" ] && continue
         
-        # 如果切换了新文件夹, 插入一行分类分割线
         if [ "$cat" != "$prev_category" ]; then
+            if [ -n "$prev_category" ]; then
+                build_sidebar="${build_sidebar}</ul></li>"
+            fi
+            cat_slug=$(echo "$cat" | tr -cd 'A-Za-z0-9')
+            
+            # checked 代表默认展开侧边栏，去掉 checked 则默认折叠
             build_sidebar="${build_sidebar}
-<li class=\"sidebar-section\" style=\"margin-top: 12px; font-weight: bold; color: var(--text-secondary, #57606a); border-bottom: 1px dashed #d0d7de; padding-bottom: 2px;\">📁 ${cat}</li>"
+<li class=\"sidebar-group\">
+    <input type=\"checkbox\" id=\"cat-${cat_slug}\" class=\"category-toggle\" checked>
+    <label for=\"cat-${cat_slug}\" class=\"category-label\"><span>📁 ${cat}</span><span class=\"arrow\">▶</span></label>
+    <ul class=\"sidebar-sub-list\">"
             prev_category="$cat"
         fi
 
-        # 插入文件链接并检测高亮
-        if [ "$base_name" = "$name" ]; then
-            build_sidebar="${build_sidebar}
-<li><a href=\"${link_prefix}${name}.html\" class=\"active\" style=\"padding-left: 20px;\">📄 ${name}</a></li>"
+        # 精准判定高亮当前活动的子页面
+        if [ "$current_rel_path_from_public" = "$rpath" ]; then
+            build_sidebar="${build_sidebar}<li><a href=\"${TO_ROOT}${rpath}\" class=\"active\">${dname}</a></li>"
         else
-            build_sidebar="${build_sidebar}
-<li><a href=\"${link_prefix}${name}.html\" style=\"padding-left: 20px;\">📄 ${name}</a></li>"
+            build_sidebar="${build_sidebar}<li><a href=\"${TO_ROOT}${rpath}\">${dname}</a></li>"
         fi
     done <<< "$RAW_ENTRIES"
 
-    build_sidebar="${build_sidebar}
-</ul>
-</nav>
-<label for=\"sidebar-toggler\" class=\"sidebar-toggle\">☰</label>
-<div class=\"page-content\">
-"
+    if [ -n "$prev_category" ]; then
+        build_sidebar="${build_sidebar}</ul></li>"
+    fi
 
-    # 使用 awk 将拼接好的侧边栏注入到 HTML 的 <body> 中
+    build_sidebar="${build_sidebar}</ul></nav>
+<label for=\"sidebar-toggler\" class=\"sidebar-toggle\">☰</label>
+<div class=\"page-content\">"
+
+    # 将拼装完整的树结构灌入 HTML 的 <body> 之后
     awk -v sidebar="$build_sidebar" '
     {
         if ($0 ~ /<body[^>]*>/) {
-            print
+            print $0
             print sidebar
         } else if ($0 ~ /<\/body>/) {
             print "</div>"
-            print
+            print $0
         } else {
-            print
+            print $0
         }
     }
     ' "$html_file" > "${html_file}.tmp" && mv "${html_file}.tmp" "$html_file"
-
-    echo "[OK] Injected segmented sidebar into: $html_file"
 done
 
-echo "[build-pages] Done! Output in: $OUTPUT_DIR"
+echo "[build-pages] Complete! Site compiled in standard structure."
