@@ -19,9 +19,52 @@ find_package(OpenCV REQUIRED)
 # set(CMAKE_BUILD_TYPE Debug or Release)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 
+# ---- DEBUG 模式 & 日志级别控制 ----
+# 通过 -DDEBUG=ON 开启 DEBUG 模式 (注入 TIMER_DEBUG 宏)
+option(DEBUG "Enable debug mode (injects TIMER_DEBUG macro)" OFF)
+
 # 编译时日志级别选项 (对应 logging.hpp 中的 LOG_COMPILE_LEVEL)
 # 可选值: 0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical
-set(LOG_COMPILE_LEVEL 1 CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical)")
+# 用户可通过 -DLOG_LEVEL=N 指定
+set(LOG_LEVEL "" CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical)")
+
+# 根据 DEBUG 开关和 LOG_LEVEL 设置最终编译日志级别
+# 检查用户是否显式指定了 LOG_LEVEL (避免 "0" 被 CMake 视为假值)
+if(DEFINED LOG_LEVEL AND NOT LOG_LEVEL STREQUAL "")
+    set(_LOG_LEVEL_USER_SPECIFIED TRUE)
+else()
+    set(_LOG_LEVEL_USER_SPECIFIED FALSE)
+endif()
+
+if(DEBUG)
+    # 开启 DEBUG 模式: 注入 TIMER_DEBUG 宏
+    add_compile_options(-DTIMER_DEBUG)
+    message(STATUS "[DEBUG] TIMER_DEBUG enabled")
+    if(_LOG_LEVEL_USER_SPECIFIED)
+        set(LOG_COMPILE_LEVEL ${LOG_LEVEL})
+        message(STATUS "[LOG] DEBUG mode: user-specified log level = ${LOG_LEVEL}")
+    else()
+        # 未指定日志级别, 默认 Debug(1)
+        set(LOG_COMPILE_LEVEL 1)
+        message(STATUS "[LOG] DEBUG mode: default log level = Debug(1)")
+    endif()
+else()
+    # 未开启 DEBUG 模式
+    if(_LOG_LEVEL_USER_SPECIFIED)
+        # 指定的日志级别不能小于 Info(2)
+        if(LOG_LEVEL LESS 2)
+            message(WARNING "[LOG] Non-DEBUG mode: specified log level ${LOG_LEVEL} is < Info(2), forcing to Info(2)")
+            set(LOG_COMPILE_LEVEL 2)
+        else()
+            set(LOG_COMPILE_LEVEL ${LOG_LEVEL})
+            message(STATUS "[LOG] Non-DEBUG mode: user-specified log level = ${LOG_LEVEL}")
+        endif()
+    else()
+        # 未指定日志级别, 默认 Info(2)
+        set(LOG_COMPILE_LEVEL 2)
+        message(STATUS "[LOG] Non-DEBUG mode: default log level = Info(2)")
+    endif()
+endif()
 
 # ---- 版本 & Git 信息注入 (用于 lib/detector/version.h) ----
 # 编译时间注入 (格式: YYYYMMDD_HHMMSS)
