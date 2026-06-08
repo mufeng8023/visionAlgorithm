@@ -1,0 +1,91 @@
+/* ============================================================================
+ * 自定义主题样式表 (custom.css)
+ * ============================================================================
+ * 使用说明：
+ *   此文件用于集中管理你自定义的 docsify-themeable 主题样式。
+ *   这些样式会覆盖主题默认的 CSS 自定义属性。
+ *
+ *   如果你不需要自定义样式，可以删除此文件。
+ *
+ *   路径说明：
+ *     在 index.html 中通过 <link> 标签引入此文件：
+ *     <link rel="stylesheet" href="../scripts/custom.css" />
+ *
+ *   颜色定制技巧：
+ *     --theme-hue 是最重要的变量，修改它就会改变整体色调。
+ *     其他变量（如 --theme-color）会自动根据 --theme-hue 计算得出。
+ * ============================================================================
+ */
+
+/* ===== 主题色相 ===== */
+:root {
+    /* 主色相 (0-360)，决定整个主题的色调 */
+    --theme-hue: 210;
+}
+
+/* ============================================================================
+ * 侧边栏折叠按钮样式定制
+ * ============================================================================
+ * 依赖：docsify-sidebar-collapse 插件会为每个有子项的目录自动生成折叠/展开按钮。
+ * 下面的样式可以调整按钮的外观，按需启用即可。
+ * ============================================================================
+ */
+
+/*
+ * 方案一：使用 emoji 箭头作为折叠指示器（推荐）
+ * 取消下面的注释即可启用
+ */
+/*
+.sidebar-nav > ul > li > p {
+  cursor: pointer;
+}
+.sidebar-nav > ul > li > p::before {
+  content: "\25B8 ";
+  transition: transform 0.2s ease;
+}
+.sidebar-nav > ul > li.active > p::before {
+  content: "\25BE ";
+  color: var(--theme-color);
+}
+*/
+
+/*
+ * 方案二：使用纯 CSS 三角形箭头
+ * 取消下面的注释即可启用
+ */
+/*
+.sidebar-nav > ul > li > p::before {
+  content: "";
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--theme-color, #666);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  margin-right: 6px;
+  transition: transform 0.15s ease;
+}
+.sidebar-nav > ul > li.active > p::before {
+  transform: rotate(90deg);
+}
+*/
+
+/* ===== 徽章/链接颜色覆盖 ===== */
+/* 
+ * 下面是一个实用示例，展示如何自定义指定主题的颜色方案。
+ * 你可以覆盖任何 docsify-themeable 支持的 CSS 变量。
+ */
+
+/* 
+:root {
+  --theme-hue: 210;
+  --base-font-size: 16px;
+  --link-color: #42b983;
+  --link-text-decoration: none;
+  --sidebar-width: 18rem;
+  --sidebar-nav-pagelink-background-image--active: none;
+  --sidebar-nav-pagelink-background-image--collapse: none;
+  --sidebar-nav-pagelink-background-image--loaded: none;
+  --sidebar-nav-pagelink-padding: 0.25em 0;
+}
+*/
