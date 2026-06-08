@@ -1,0 +1,205 @@
+<!--
+  ============================================================================
+  Docsify 文档站点入口文件 (index.html)
+  ============================================================================
+  功能说明：
+  1. 主题引入：通过 <link> 标签引入 docsify-themeable 主题 CSS
+     - theme-simple.css：浅色主题（日间模式）
+     - theme-simple-dark.css：深色主题（夜间模式）
+     通过 media="(prefers-color-scheme: ...)" 属性实现根据系统偏好自动切换
+  2. CSS 自定义属性：在 <style> 标签中使用 :root 定义 CSS 变量覆盖主题默认值
+  3. window.$docsify 配置对象：docsify 核心配置和 docsify-themeable 特有配置
+  4. JS 引入：docsify 核心库、docsify-themeable 插件、搜索/缩放等扩展插件
+
+  ============================================================================
+  使用说明（搭建你自己的文档站点）：
+  ============================================================================
+  1. 【必改】修改 <title> 标签中的站点标题
+  2. 【必改】修改 <meta name="description"> 中的站点描述
+  3. 【必改】修改 window.$docsify 中的 name、repo、coverpage、homepage、loadSidebar
+  4. 【可选】修改 :root 中的 CSS 变量来定制主题（颜色、字体等）
+  5. 【可选】根据实际插件需求增减 plugins 配置
+  6. 【可选】如果不需要封面页，删除 coverpage 配置项
+  ============================================================================
+-->
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1, minimum-scale=1.0, shrink-to-fit=no, viewport-fit=cover"
+        />
+        <meta
+            name="description"
+            content="visionAlgorithm - 基于 C++17 的轻量级 YOLO 系列模型推理框架，支持通过 OpenCV DNN 后端加载 ONNX 模型，完成目标检测与姿态估计任务。"
+        />
+        <title>visionAlgorithm 文档</title>
+
+        <!-- ================================================================= -->
+        <!-- 主题样式表（Theme Stylesheets） -->
+        <!-- ================================================================= -->
+
+        <!-- 基础默认主题：提供所有 CSS 变量的默认值（disabled 表示不直接启用，仅作为变量基础） -->
+        <link
+            rel="stylesheet"
+            data-style-group="themeable"
+            href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-defaults.css"
+            disabled
+        />
+
+        <!-- 浅色主题：系统偏好为 light 时自动启用 -->
+        <link
+            rel="stylesheet"
+            data-style-group="themeable"
+            media="(prefers-color-scheme: light)"
+            href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple.css"
+        />
+
+        <!-- 深色主题：系统偏好为 dark 时自动启用 -->
+        <link
+            rel="stylesheet"
+            data-style-group="themeable"
+            media="(prefers-color-scheme: dark)"
+            href="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/css/theme-simple-dark.css"
+        />
+
+        <!-- ================================================================= -->
+        <!-- 自定义主题样式（Custom Theme Styles） -->
+        <!-- ================================================================= -->
+
+        <!-- 引入自定义 CSS 样式表（侧边栏折叠按钮等） -->
+        <link rel="stylesheet" href="../scripts/custom.css" />
+
+        <style>
+            :root {
+                /* === 主题色相（Theme Hue） === */
+                /* 蓝色调，与算法/技术文档风格匹配 */
+                --theme-hue: 210;
+
+                /* === 基础排版（Base Typography） === */
+                /* --base-font-size: 16px; */
+                /* --base-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; */
+                /* --base-line-height: 1.6; */
+
+                /* === 内容区域（Content Area） === */
+                /* --content-max-width: 55em; */
+
+                /* === 侧边栏（Sidebar） === */
+                /* --sidebar-width: 16rem; */
+                /* --sidebar-nav-indent: 1em; */
+
+                /* === 代码块（Code Block） === */
+                /* --code-font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; */
+                /* --code-font-size: 0.875em; */
+                /* --code-block-border-radius: 0.5em; */
+                /* --code-block-padding: 1em 1.5em; */
+
+                /* === 封面页（Cover Page） === */
+                /* --cover-background: linear-gradient(to left bottom, hsl(210, 100%, 85%) 0%, hsl(210, 100%, 85%) 100%); */
+                /* --cover-color: #fff; */
+                /* --cover-button-background: #fff; */
+                /* --cover-button-color: var(--theme-color); */
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- docsify 渲染容器：所有内容将渲染到此 div 内 -->
+        <div id="app"></div>
+
+        <script>
+            // =====================================================================
+            // docsify 核心配置 (window.$docsify)
+            // =====================================================================
+            window.$docsify = {
+                // ===== 站点基本信息 =====
+                name: "visionAlgorithm", // 站点名称（显示在侧边栏顶部）
+                repo: "https://github.com/mufeng8023/visionAlgorithm.git", // GitHub 仓库地址
+                homepage: "README.md", // 首页文件
+                loadSidebar: "_sidebar.md", // 侧边栏配置文件路径
+                coverpage: "_coverpage.md", // 封面页配置
+
+                // ===== 导航配置 =====
+                auto2top: true, // 切换页面时自动滚动到顶部
+                maxLevel: 4, // 侧边栏自动生成目录的最大标题层级（h1-h4）
+                subMaxLevel: 2, // 子目录最大层级
+                // nameLink: '/',                 // 点击站点名称的跳转链接（默认 '/'）
+                // notFoundPage: '_404.md',       // 自定义 404 页面
+                // topMargin: 0,                  // 页面顶部边距（用于嵌入场景）
+
+                // ===== 搜索配置 =====
+                search: {
+                    maxAge: 86400000, // 搜索索引过期时间（毫秒），默认 1 天
+                    paths: "auto", // 搜索路径（'auto' 表示自动索引所有页面）
+                    placeholder: "搜索...", // 搜索框占位文字
+                    noData: "没有找到结果", // 无搜索结果时的提示文字
+                    depth: 4, // 搜索深度（标题层级）
+                    hideOtherSidebarContent: true // 搜索时隐藏侧边栏其他内容
+                },
+
+                // ===== 主题配置 =====
+                themeable: {
+                    readyTransition: true, // 启用页面加载过渡动画
+                    responsiveTables: true // 启用响应式表格
+                },
+
+                // ===== 分页导航插件配置 =====
+                pagination: {
+                    previousText: "上一页", // 上一页按钮文字
+                    nextText: "下一页", // 下一页按钮文字
+                    crossChapter: true, // 允许跨章节翻页
+                    crossChapterText: true // 跨章节时显示章节名
+                },
+
+                // ===== 代码复制插件配置 =====
+                copyCode: {
+                    buttonText: "复制", // 复制按钮文字
+                    errorText: "复制失败", // 复制失败提示
+                    successText: "已复制" // 复制成功提示
+                },
+
+                // ===== 插件列表（按需增减） =====
+                plugins: []
+            }
+        </script>
+
+        <!-- ================================================================= -->
+        <!-- JavaScript 库（按顺序加载） -->
+        <!-- ================================================================= -->
+
+        <!-- 1. docsify 核心库 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/docsify.min.js"></script>
+
+        <!-- 2. docsify-themeable 主题插件（必须在 docsify 之后加载） -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify-themeable@0/dist/js/docsify-themeable.min.js"></script>
+
+        <!-- 3. docsify 内置插件 -->
+        <!-- 全文搜索插件 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/search.min.js"></script>
+        <!-- 图片缩放插件 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/zoom-image.min.js"></script>
+        <!-- 外部脚本执行插件（如页面中需要使用 <script> 标签） -->
+        <!-- <script src="https://cdn.jsdelivr.net/npm/docsify@4/lib/plugins/external-script.min.js"></script> -->
+
+        <!-- 4. 第三方扩展插件（按需启用） -->
+        <!-- 侧边栏折叠：支持多个子目录折叠/展开 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify-sidebar-collapse/dist/docsify-sidebar-collapse.min.js"></script>
+        <!-- 代码复制按钮 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify-copy-code@2/dist/docsify-copy-code.min.js"></script>
+        <!-- 上下页导航 -->
+        <script src="https://cdn.jsdelivr.net/npm/docsify-pagination@2/dist/docsify-pagination.min.js"></script>
+        <!-- Tab 切换 -->
+        <!-- <script src="https://cdn.jsdelivr.net/npm/docsify-tabs@1/dist/docsify-tabs.min.js"></script> -->
+
+        <!-- 5. PrismJS 语法高亮语言扩展（按需添加） -->
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-bash.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-c.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-cpp.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-cmake.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-json.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-yaml.min.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-markdown.min.js"></script>
+    </body>
+</html>
