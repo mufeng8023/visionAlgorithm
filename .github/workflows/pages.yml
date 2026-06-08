@@ -1,26 +1,60 @@
-# GitHub Pages 部署工作流
-# 触发条件: 推送到 gh-pages 分支时自动构建并部署
-name: Deploy GitHub Pages
+# ============================================================================
+# GitHub Actions 构建部署配置 (pages.yml)
+# ============================================================================
+# 重要：docsify 是纯客户端渲染，不需要 Node.js 构建。
+#       Markdown 文件直接放入 docs/ 目录即可，浏览器访问 index.html 时
+#       docsify JS 会自动拉取 .md 文件并动态渲染。
+#       本 workflow 只需复制文件并部署，无需任何编译步骤。
+#
+# 构建步骤：
+#   1. 检出代码到 runner
+#   2. 执行构建脚本 scripts/build-pages.sh（纯文件复制）
+#   3. 将构建输出 public/ 目录上传为 artifacts
+#   4. 将 artifacts 部署到 GitHub Pages
+#
+# 前提条件：
+#   - 仓库 Settings → Pages → Source 选择 "GitHub Actions"
+#   - 仓库 Settings → Actions → General → Workflow permissions
+#     选择 "Read and write permissions"
+# ============================================================================
+# 自定义说明：
+#   1. 将 branches 改为你实际的分支名
+#   2. 如果你的文档在根目录而非 docs/ 下，修改 build-pages.sh 对应路径
+# ============================================================================
 
+name: Deploy Docsify Site
+
+# -------------------------------------------------------------------------
+# 触发条件：推送指定分支 + 手动触发
+# -------------------------------------------------------------------------
 on:
     push:
         branches:
-            - gh-pages
+            - gh-pages # 仅当推送到 gh-pages 分支时触发
+        paths:
+            - "docs/**" # 仅 docs/ 目录变更时触发
+            - "scripts/**" # 仅 scripts/ 目录变更时触发
+            - ".github/workflows/pages.yml" # workflow 自身变更时触发
+    workflow_dispatch: # 允许手动触发
 
-    # 允许手动触发
-    workflow_dispatch:
-
-# 设置 GITHUB_TOKEN 权限以部署到 Pages
+# -------------------------------------------------------------------------
+# 权限设置
+# -------------------------------------------------------------------------
 permissions:
     contents: read
     pages: write
     id-token: write
 
-# 只允许一个并发部署, 避免旧部署覆盖新部署
+# -------------------------------------------------------------------------
+# 并发控制：同一时间只允许一个部署运行，新的运行会取消旧的
+# -------------------------------------------------------------------------
 concurrency:
-    group: "pages"
+    group: pages
     cancel-in-progress: true
 
+# -------------------------------------------------------------------------
+# 构建和部署 Job
+# -------------------------------------------------------------------------
 jobs:
     build-and-deploy:
         runs-on: ubuntu-latest
@@ -29,29 +63,37 @@ jobs:
             url: ${{ steps.deployment.outputs.page_url }}
 
         steps:
-            - name: Checkout
+            # ===================================================================
+            # 第一步：检出代码
+            # ===================================================================
+            - name: Checkout repository
               uses: actions/checkout@v4
-              with:
-                  fetch-depth: 0
 
-            - name: Install pandoc
+            # ===================================================================
+            # 第二步：执行构建脚本（纯文件复制，无需编译）
+            # ===================================================================
+            - name: Build docs site
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y pandoc
-
-            - name: Build Pages
-              run: |
-                  # 显式赋予脚本执行权限
                   chmod +x scripts/build-pages.sh
-                  # 使用 bash 运行多级目录隔离版脚本
                   bash scripts/build-pages.sh
 
+            # ===================================================================
+            # 第三步：设置 GitHub Pages
+            # ===================================================================
+            - name: Setup Pages
+              uses: actions/configure-pages@v4
+
+            # ===================================================================
+            # 第四步：上传构建产物
+            # ===================================================================
             - name: Upload artifact
               uses: actions/upload-pages-artifact@v3
               with:
-                  # 这里的路径必须与你脚本中生成的静态文件输出目录一致
-                  path: public
+                  path: public/
 
+            # ===================================================================
+            # 第五步：部署到 GitHub Pages
+            # ===================================================================
             - name: Deploy to GitHub Pages
               id: deployment
               uses: actions/deploy-pages@v4
