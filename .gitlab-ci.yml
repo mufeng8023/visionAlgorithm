@@ -1,15 +1,36 @@
+# ============================================================================
+# GitLab CI/CD 构建配置 (.gitlab-ci.yml)
+# ============================================================================
+# 重要：docsify 是纯客户端渲染，不需要 Node.js 构建。
+#       Markdown 文件直接放入 docs/ 目录即可，浏览器访问 index.html 时
+#       docsify JS 会自动拉取 .md 文件并动态渲染。
+#       本 CI 只需复制文件并输出到 public/，无需任何编译步骤。
+#
+# 触发分支：
+#   - gh-pages 分支（专门用于文档部署的分支）
+#   如果你的文档放在主分支上，可将 only 改为 main 或 master
+#
+# 产物说明：
+#   - public/ 目录：构建生成的静态网站文件
+#   - GitLab Pages 会自动从 public/ 目录读取文件并部署
+#
+# 使用前提：
+#   1. 项目 Settings → CI/CD → Runners 已启用
+#   2. 项目 Settings → Pages 已启用
+#   3. gitlab-runner 支持 Docker 执行器
+# ============================================================================
+
 pages:
-    stage: deploy
-    image: alpine:3.22.4
-    before_script:
-        # 核心修改：在 Alpine 容器中除了装 pandoc, 必须加装 bash 和 coreutils(提供标准 tr 支持)
-        - apk add --no-cache pandoc bash coreutils
+    stage: deploy # 阶段名称（部署阶段）
+    image: alpine:3.22.4 # 使用 Alpine Linux 镜像（轻量级）
+    # 注意：docsify 不需要 Node.js/npm/pandoc 等额外工具
+    #       构建脚本只需要 bash 和 coreutils（cp、mkdir 等基础命令）
+    #       Alpine 镜像已内置这些工具
     script:
         - chmod +x scripts/build-pages.sh
-        # 显式指定用 bash 运行脚本
-        - bash scripts/build-pages.sh
+        - bash scripts/build-pages.sh # 执行构建脚本（纯文件复制）
     artifacts:
         paths:
-            - public
+            - public # 将 public/ 目录作为构建产物
     only:
-        - gh-pages
+        - gh-pages # 仅在推送到 gh-pages 分支时触发
