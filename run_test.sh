@@ -108,7 +108,7 @@ for m in "${SELECTED[@]}"; do
     ./yolo \
         --log_ini_path="${ROOT}/log_config.ini" \
         --model_bench=OpenCV \
-        --model_ini_path="${ROOT}/config/${ini}" \
+        --model_ini_path="${ROOT}/config/detection/${ini}" \
         --model_path="${ROOT}/onnx/${onnx}" \
         --device=0 \
         --test_image_path="${ROOT}/test_img/${img}" \
