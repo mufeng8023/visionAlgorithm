@@ -77,7 +77,7 @@ namespace tracker
  *   第 1 步: 从检测器拿到原始框 + 置信度 + 类别
  *   float32 raw_ltwh[4] = {100, 200, 50, 100};
  *   float32 score = 0.85f;
- *   uint32  cls_id = 0;  // 人
+ *   int32  cls_id = 0;  // 人
  *
  *   第 2 步: 创建 BoxObject, 自动计算扩展框, 保存 score 和 cls_id
  *   BoxObject det_box(raw_ltwh, score, cls_id, 0.2f);  // 扩展 20%
@@ -143,7 +143,7 @@ struct BoxObject
     // cls_id: 检测框的类别 ID (class / label)
     // 由检测器直接输出, 对应检测器的类别索引;
     // 对应 BaseTrack::cls_id;
-    uint32 cls_id = 0;
+    int32 cls_id = -1;
 
     // ================================================================
     // 构造函数
@@ -179,14 +179,14 @@ struct BoxObject
      * @param ltwh_data       const float32* : 原始检测框 ltwh[l, t, w, h];
      *                                         指针需指向有效数据, 长度至少 4;
      * @param score           float32        : 检测框置信度分数;
-     * @param cls_id          uint32         : 检测框类别 ID (label);
+     * @param cls_id          int32          : 检测框类别 ID (label);
      * @param expand_box_rate float32        : 边界框扩展率;
      *                                         取值范围 [0.0, 1.0], 0.0 表示不扩展;
      *                                         典型值: 0.0 (不扩展) / 0.1 (10%) / 0.2 (20%);
      */
     BoxObject(const float32* ltwh_data,  //
               float32 score,             //
-              uint32 cls_id,             //
+              int32 cls_id,              //
               float32 expand_box_rate = 0.0f)
         : score(score), cls_id(cls_id)
     {

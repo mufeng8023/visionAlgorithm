@@ -74,7 +74,7 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
     BytetrackTrack(const std::vector<float32>& ltwh,  //
                    int32 frame_id,                    //
                    int32 track_id,                    //
-                   uint32 cls_id = -1,                //
+                   int32 cls_id = -1,                 //
                    float32 score = 0.0f,              //
                    float32 expand_box_rate = 0.0f)
         : BaseTrack(track_id, frame_id, expand_box_rate)
