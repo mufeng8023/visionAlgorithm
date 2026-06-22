@@ -295,10 +295,10 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
     // ================================================================
 
     /***
-     * @description: 标记轨迹为丢失状态 (空实现)
-     *               DeepSORT 使用 mark_missed() 处理丢失, 此处仅为满足基类纯虚函数要求;
+     * @description: 标记轨迹为丢失状态
+     *               DeepSORT 使用 mark_missed() 处理丢失;
      */
-    virtual void mark_lost() override {}
+    void mark_lost() override { this->mark_missed(); }
 
     /***
      * @description: 标记轨迹为已移除状态 (state -> Deleted)
