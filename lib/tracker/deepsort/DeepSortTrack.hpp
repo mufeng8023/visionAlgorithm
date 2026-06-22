@@ -303,7 +303,7 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
     /***
      * @description: 标记轨迹为已移除状态 (state -> Deleted)
      */
-    virtual void mark_removed() override { this->state = DeepSortState::Deleted; }
+    void mark_removed() override { this->state = DeepSortState::Deleted; }
 
     /***
      * @description: 从卡尔曼 mean 更新 this->ltwh_expand (扩展框)
