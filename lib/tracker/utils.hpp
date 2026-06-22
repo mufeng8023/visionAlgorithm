@@ -103,6 +103,11 @@ void parser_ini_tracker_config(const std::string& ini_path, TrackerConfig& confi
     config.max_cosine_distance = static_cast<float32>(ini_parser.get_double("track", "max_cosine_distance", 0.2));
     LOG_DEFAULT_INFO("max_cosine_distance:%f", config.max_cosine_distance);
 
+    // 13. 边界框扩展率 (通用参数, 默认 0.0)
+    // 卡尔曼操作前将检测框向外扩展的比例, 对小目标跟踪有帮助;
+    config.expand_box_rate = static_cast<float32>(ini_parser.get_double("track", "expand_box_rate", 0.0));
+    LOG_DEFAULT_INFO("expand_box_rate:%f", config.expand_box_rate);
+
     LOG_DEFAULT_INFO("Successfully loaded tracker config from: %s", ini_path.c_str());
 }
 

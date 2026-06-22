@@ -69,6 +69,12 @@ typedef struct
     // IoU 匹配阈值, 用于第二关联阶段以及未确认轨迹的匹配
     float32 max_iou_distance = 0.7;
 
+    // 边界框扩展率 (通用参数)
+    // 卡尔曼操作前将检测框向外扩展的比例, 默认 0.0 表示不扩展;
+    // 扩展后的框用于卡尔曼的 initiate/update, 写回时自动恢复原始坐标;
+    // 对小目标跟踪有帮助, 典型值: 0.1~0.3
+    float32 expand_box_rate = 0.0f;
+
     // DeepSORT 专用参数 (仅在 tracker_type == deepsort 时生效)
     // 是否使用 ReID 特征进行级联匹配, DeepSORT 必须为 true
     bool use_reid = false;
