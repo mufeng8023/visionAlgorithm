@@ -421,6 +421,9 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
             }
             // 使用共享的卡尔曼滤波器进行预测 (公式: mean' = F*mean, cov' = F*cov*F^T + Q);
             kalman_filter.predict(stracks[i]->mean, stracks[i]->covariance);
+
+            // 更新扩展框 ltwh_expand;
+            stracks[i]->update_ltwh();
         }
     }
 
