@@ -218,11 +218,15 @@ struct BoxObject
               float32 score,                         //
               uint32 cls_id,                         //
               float32 expand_box_rate = 0.0f)
-        : BoxObject(ltwh_vec.data(), score, cls_id, expand_box_rate)
+        : score(score), cls_id(cls_id)
     {
-        // 委托给 float* 构造函数;
-        // 注意: 当 ltwh_vec 长度 < 4 时, ltwh_vec.data() 可能越界;
-        //       调用者需确保 vector 长度 >= 4;
+        // 安全拷贝, 如果越界会抛出 std::out_of_range;
+        for (int32 i = 0; i < 4; ++i)
+        {
+            this->ltwh[i] = ltwh_vec.at(i);
+            this->ltwh_expand[i] = ltwh_vec.at(i);
+        }
+        this->expand_static(this->ltwh_expand, expand_box_rate);
     }
 
     /***
