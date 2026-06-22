@@ -211,12 +211,12 @@ struct BoxObject
      *               如果 vector 长度不足 4, 会断言失败 (但依赖于 std::vector 的 at());
      * @param ltwh_vec        const std::vector<float32>& : 原始检测框 ltwh[l, t, w, h];
      * @param score           float32                     : 检测框置信度分数;
-     * @param cls_id          uint32                      : 检测框类别 ID (label);
+     * @param cls_id           int32                      : 检测框类别 ID (label);
      * @param expand_box_rate float32                     : 边界框扩展率;
      */
     BoxObject(const std::vector<float32>& ltwh_vec,  //
               float32 score,                         //
-              uint32 cls_id,                         //
+              int32 cls_id,                          //
               float32 expand_box_rate = 0.0f)
         : score(score), cls_id(cls_id)
     {
@@ -234,12 +234,12 @@ struct BoxObject
      *               与上面的 float* 版本功能一致;
      * @param ltwh_arr        const std::array<float32, 4>& : 原始检测框 ltwh[l, t, w, h];
      * @param score           float32                      : 检测框置信度分数;
-     * @param cls_id          uint32                       : 检测框类别 ID (label);
+     * @param cls_id           int32                       : 检测框类别 ID (label);
      * @param expand_box_rate float32                      : 边界框扩展率;
      */
     BoxObject(const std::array<float32, 4>& ltwh_arr,  //
               float32 score,                           //
-              uint32 cls_id,                           //
+              int32 cls_id,                            //
               float32 expand_box_rate = 0.0f)
         : BoxObject(ltwh_arr.data(), score, cls_id, expand_box_rate)
     {
@@ -256,12 +256,12 @@ struct BoxObject
      *
      * @param ltwh_data       const float32* : 新的原始检测框 [l, t, w, h];
      * @param score           float32        : 检测框置信度分数;
-     * @param cls_id          uint32         : 检测框类别 ID (label);
+     * @param cls_id           int32         : 检测框类别 ID (label);
      * @param expand_box_rate float32        : 边界框扩展率;
      */
     void set_ltwh(const float32* ltwh_data,  //
                   float32 score,             //
-                  uint32 cls_id,             //
+                  int32 cls_id,              //
                   float32 expand_box_rate = 0.0f)
     {
         // 更新原始框;
