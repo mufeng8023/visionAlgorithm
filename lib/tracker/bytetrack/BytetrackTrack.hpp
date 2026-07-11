@@ -157,27 +157,6 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
     // ================================================================
 
     /***
-     * @description: 获取 xyxy 格式 [x1, y1, x2, y2], 用于 IoU 计算
-     *               参考 bytetracker STrack::xyxy
-     *
-     *               NOTE: IoU 匹配使用扩展框的 xyxy, 因为扩展框与卡尔曼状态
-     *               处于同一空间, 匹配一致性更好;
-     *               如果需要原始框的 xyxy, 可直接读取 track->ltwh 自行计算;
-     *
-     * @return std::array<float32, 4> : xyxy 格式 [x1, y1, x2, y2];
-     *                                   使用 std::array 返回, 无动态分配;
-     */
-    std::array<float32, 4> get_xyxy() const
-    {
-        return {
-            this->ltwh_expand[0],                         //
-            this->ltwh_expand[1],                         //
-            this->ltwh_expand[0] + this->ltwh_expand[2],  //
-            this->ltwh_expand[1] + this->ltwh_expand[3]   //
-        };
-    }
-
-    /***
      * @description: 从卡尔曼 mean 更新 this->ltwh_expand (扩展框)
      *
      *               mean 存储的是扩展空间中的 xyah 状态;

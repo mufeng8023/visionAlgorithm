@@ -309,8 +309,12 @@ class BaseTrack
      */
     inline std::array<float32, 4> get_xyxy() const
     {
-        return {this->ltwh_expand[0], this->ltwh_expand[1], this->ltwh_expand[0] + this->ltwh_expand[2],
-                this->ltwh_expand[1] + this->ltwh_expand[3]};
+        return {
+            this->ltwh_expand[0],                         //
+            this->ltwh_expand[1],                         //
+            this->ltwh_expand[0] + this->ltwh_expand[2],  //
+            this->ltwh_expand[1] + this->ltwh_expand[3]   //
+        };
     }
 
     /***
