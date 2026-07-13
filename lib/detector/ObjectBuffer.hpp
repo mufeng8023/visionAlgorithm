@@ -178,16 +178,16 @@ class ObjectBuffer
      * @description: 获取检测目标个数, 有效 和 无效 都算
      * @return
      */
-    inline uint32 get_obj_count() const { return static_cast<uint32>(this->valid_mask.size()); }
+    inline size_t get_obj_count() const { return this->valid_mask.size(); }
 
     /***
      * @description: 获取 有效 目标的总数
      * @return
      */
-    uint32 get_valid_count() const
+    size_t get_valid_count() const
     {
         // 统计个数
-        return std::count(valid_mask.begin(), valid_mask.end(), ObjStatus::Valid);
+        return static_cast<size_t>(std::count(valid_mask.begin(), valid_mask.end(), ObjStatus::Valid));
     }
 
     /***
@@ -195,7 +195,7 @@ class ObjectBuffer
      * @param obj_idx uint32 : 检测目标的索引
      * @return bool : 是否有效, true 表示有效, false 表示无效
      */
-    bool is_valid(uint32 obj_idx) const
+    bool is_valid(size_t obj_idx) const
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -210,7 +210,7 @@ class ObjectBuffer
      * @param valid bool : 是否有效, true 表示有效, false 表示无效
      * @return 没有返回值
      */
-    void set_valid(uint32 obj_idx, bool valid)
+    void set_valid(size_t obj_idx, bool valid)
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -224,7 +224,7 @@ class ObjectBuffer
      * @param obj_idx uint32 : 检测目标的索引
      * @return
      */
-    float32* at(uint32 obj_idx)
+    float32* at(size_t obj_idx)
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -237,7 +237,7 @@ class ObjectBuffer
      * @param obj_idx uint32 : 检测目标的索引
      * @return
      */
-    const float32* at(uint32 obj_idx) const
+    const float32* at(size_t obj_idx) const
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -250,7 +250,7 @@ class ObjectBuffer
      *               这种方式允许你使用 buffer[i][j] 的语法
      * @return
      */
-    float32* operator[](uint32 obj_idx)
+    float32* operator[](size_t obj_idx)
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -263,7 +263,7 @@ class ObjectBuffer
      *               这种方式允许你使用 buffer[i][j] 的语法
      * @return
      */
-    const float32* operator[](uint32 obj_idx) const
+    const float32* operator[](size_t obj_idx) const
     {
         // 访问元素, 索引必须小于已存在的目标个数
         assert(obj_idx < this->get_obj_count() && "obj_idx out of range");
@@ -296,7 +296,7 @@ class ObjectBuffer
         if (data != nullptr)
         {
             // 获取当前检测目标个数
-            uint32 current_idx = this->get_obj_count();
+            size_t current_idx = this->get_obj_count();
             // 将数据复制到缓冲区
             std::copy(data, data + this->stride, this->buffer.begin() + (current_idx * this->stride));
 
@@ -311,7 +311,7 @@ class ObjectBuffer
      * @param data float32* : 检测目标的指针, 长度必须和 this->stride 一致, 否则会崩溃
      * @return
      */
-    void append_at(uint32 det_idx, const float32* data)
+    void append_at(size_t det_idx, const float32* data)
     {
         assert(det_idx <= this->get_obj_count() && "det_idx out of range");
 
@@ -338,20 +338,20 @@ class ObjectBuffer
      * @description: 获取按分数降序排序后的原始索引列表, 只获取实际目标个数的索引
      * @return
      */
-    std::vector<uint32> get_sorted_indices() const
+    std::vector<size_t> get_sorted_indices() const
     {
-        uint32 current_obj_count = this->get_obj_count();
-        std::vector<uint32> indices(current_obj_count);
+        size_t current_obj_count = this->get_obj_count();
+        std::vector<size_t> indices(current_obj_count);
 
         // 快速生成一个从 0 到 n-1 的索引序列
         std::iota(indices.begin(), indices.end(), 0);  // 填充 0, 1, 2...
 
         // 按分数降序排序
         std::sort(indices.begin(), indices.end(),
-                  [this](uint32 a, uint32 b)
+                  [this](size_t a, size_t b)
                   {
                       // 这里的 this 是 const ObjectBuffer*
-                      // 因此调用的是 const float32* at(uint32 obj_idx) const
+                      // 因此调用的是 const float32* at(size_t obj_idx) const
                       const float32* data_a = this->at(a);
                       const float32* data_b = this->at(b);
 
@@ -370,14 +370,14 @@ class ObjectBuffer
     {
         // 双指针算法, 将有效的元素移动到缓冲区连续位置
         // read_idx 从后往前遍历, write_idx 从前往后遍历
-        uint32 read_idx = this->get_obj_count();  // 此时是总长度
+        size_t read_idx = this->get_obj_count();  // 此时是总长度
         // 如果 read_idx 为 0, 说明缓冲区为空, 直接返回
         if (read_idx == 0)
             return;
 
         // 之后才是真实的最后一个索引, 索引比总长度小1
         read_idx = read_idx - 1;
-        uint32 write_idx = 0;
+        size_t write_idx = 0;
 
         // 两个指针相遇时, 说明已经遍历完所有元素
         while (read_idx > write_idx)
