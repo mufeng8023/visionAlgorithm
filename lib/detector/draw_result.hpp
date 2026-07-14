@@ -136,7 +136,7 @@ void draw_detection_result(cv::Mat& image_bgr,                          //
     int32 fontFace = cv::FONT_HERSHEY_SIMPLEX;
 
     // 遍历每个检测结果
-    for (uint32 i = 0; i < static_cast<uint32>(det_results.size()); ++i)
+    for (size_t i = 0; i < det_results.size(); ++i)
     {
         const YoloObject& obj = det_results[i];
 
@@ -248,7 +248,7 @@ void draw_pose_result(cv::Mat& image_bgr,                          //
     };
 
     // 遍历每个检测结果, 绘制关键点和骨架
-    for (uint32 i = 0; i < static_cast<uint32>(det_results.size()); ++i)
+    for (size_t i = 0; i < det_results.size(); ++i)
     {
         const YoloObject& obj = det_results[i];
 
@@ -268,10 +268,10 @@ void draw_pose_result(cv::Mat& image_bgr,                          //
         }
 
         // 关键点总数
-        uint32 kpt_count = static_cast<uint32>(kpts.size());
+        size_t kpt_count = kpts.size();
 
         // 绘制关键点 (圆圈)
-        for (uint32 j = 0; j < kpt_count; ++j)
+        for (size_t j = 0; j < kpt_count; ++j)
         {
             // 获取当前关键点的置信度分数
             float32 v = kpts[j].score;
@@ -302,7 +302,7 @@ void draw_pose_result(cv::Mat& image_bgr,                          //
         }
 
         // 绘制骨架 (线段)
-        for (uint32 k = 0; k < static_cast<uint32>(skeleton.size()); ++k)
+        for (size_t k = 0; k < skeleton.size(); ++k)
         {
             // 获取当前骨架线段两个端点的关键点索引
             int32 idx1 = skeleton[k][0];  // 第一个端点索引

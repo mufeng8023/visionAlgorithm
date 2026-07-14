@@ -238,7 +238,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     LOG_DEFAULT_INFO("no:%d", config.no);
 
     // 根据类别名字, 将 conf_thrs 进行扩充, 保证数量一致, 如果 conf_thrs 个数小于类别个数, 则使用最后一个值进行填充
-    if (config.conf_thrs.size() < config.nc)
+    if (config.conf_thrs.size() < static_cast<size_t>(config.nc))
     {
         // 不修改原来的值, 新扩充的位置使用最后一个值进行填充
         config.conf_thrs.resize(config.nc, config.conf_thrs.back());

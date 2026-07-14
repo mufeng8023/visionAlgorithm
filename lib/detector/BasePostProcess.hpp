@@ -40,7 +40,7 @@ namespace yolo
 static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool agnostic = false)
 {
     // 获取所有目标的个数
-    uint32 count = output.get_obj_count();
+    size_t count = output.get_obj_count();
     LOG_DEFAULT_DEBUG("before nms_ops: output.size = %d", count);
 
     // 如果只有一个结果, 则直接返回
@@ -52,13 +52,13 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
     // 开始进行nms操作
     LOG_DEFAULT_DEBUG("nms_ops: start nms, get sorted indices");
     //  获取按分数降序排列的索引列表, 添加进来的有效+无效[可能存在, 置信度筛选低于阈值被置为无效]的目标个数
-    std::vector<uint32> indices = output.get_sorted_indices();
+    std::vector<size_t> indices = output.get_sorted_indices();
 
     LOG_DEFAULT_DEBUG("nms_ops: start for loop to remove overlapped obj");
     //  遍历索引列表
-    for (uint32 i = 0; i < indices.size(); ++i)
+    for (size_t i = 0; i < indices.size(); ++i)
     {
-        uint32 obj_idx_i = indices[i];
+        size_t obj_idx_i = indices[i];
         // 如果当前目标是无效的就跳过
         if (!output.is_valid(obj_idx_i))
         {
@@ -76,9 +76,9 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
         float32 area_i = data_i_fp32p[ObjectOffset::width] * data_i_fp32p[ObjectOffset::height];
         uint32 cls_id_i = static_cast<uint32>(data_i_fp32p[ObjectOffset::cls_id]);
 
-        for (uint32 j = i + 1; j < indices.size(); ++j)
+        for (size_t j = i + 1; j < indices.size(); ++j)
         {
-            uint32 obj_idx_j = indices[j];
+            size_t obj_idx_j = indices[j];
 
             // 如果当前目标是无效的就跳过
             if (!output.is_valid(obj_idx_j))
@@ -150,10 +150,10 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
  * @param max_det uint32 :
  * @return
  */
-static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
+static inline void end2end_post(ObjectBuffer& output, size_t max_det = 300)
 {
     // 获取所有目标的个数
-    uint32 count = output.get_obj_count();
+    size_t count = output.get_obj_count();
     LOG_DEFAULT_DEBUG("end2end_post: output.size = %d", count);
 
     if (count <= max_det)
@@ -181,10 +181,10 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
     }
 
     //  获取按分数降序排列的索引列表, 添加进来的有效+无效[可能存在, 置信度筛选低于阈值被置为无效]的目标个数
-    std::vector<uint32> indices = output.get_sorted_indices();
+    std::vector<size_t> indices = output.get_sorted_indices();
 
     // 遍历索引列表, max_det 个目标后, 剩余的目标设置为 无效
-    for (uint32 idx = max_det; idx < indices.size(); ++idx)
+    for (size_t idx = max_det; idx < indices.size(); ++idx)
     {
         // 目标设置为 无效
         output.set_valid(indices[idx], false);
@@ -212,7 +212,7 @@ static inline void end2end_post(ObjectBuffer& output, uint32 max_det = 300)
 inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
                                 float32 iou_thr = 0.45,              //
                                 bool agnostic = false,               //
-                                uint32 max_det = 300,                //
+                                size_t max_det = 300,                //
                                 bool end2end = false                 //
 )
 {
@@ -228,10 +228,10 @@ inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
 #endif
 
     // outputs 的个数, 即 Batch Size
-    uint32 batch_size = outputs.size();
+    size_t batch_size = outputs.size();
 
     // 开始对每个 Batch 进行处理
-    for (uint32 batch_idx = 0; batch_idx < batch_size; ++batch_idx)
+    for (size_t batch_idx = 0; batch_idx < batch_size; ++batch_idx)
     {
         // 获取当前 Batch 的输出
         ObjectBuffer& output = outputs[batch_idx];

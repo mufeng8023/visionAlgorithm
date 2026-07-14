@@ -292,7 +292,7 @@ class RunTime
         TIMER_START_DEBUG(DET_RUNTIME_PREPROCESS_TIME_NAME);
 
         // 添加图片预处理 resize, 等比例缩放到 目标shape
-        for (uint32 i = 0; i < images_bgr.size(); ++i)
+        for (size_t i = 0; i < images_bgr.size(); ++i)
         {
             this->resize_info[i] = pre_process_resize_img(images_bgr[i],                                  //
                                                           static_cast<int32>(this->config.input_height),  //
@@ -351,7 +351,7 @@ class RunTime
             }
 
             // 根据 batch_idx 获取对应的 ObjectBuffer
-            for (uint32 result_idx = 0; result_idx < batch_results.get_obj_count(); ++result_idx)
+            for (size_t result_idx = 0; result_idx < batch_results.get_obj_count(); ++result_idx)
             {
                 // 获取 ObjectBuffer 中的结果
                 // 每一组检测结果的长度
@@ -472,7 +472,7 @@ class RunTime
                      const std::vector<std::vector<yolo::YoloObject>>& det_results)
     {
         // 每张图单独绘制边界框
-        for (uint32 i = 0; i < images_bgr.size(); ++i)
+        for (size_t i = 0; i < images_bgr.size(); ++i)
         {
             switch (this->config.task)
             {

@@ -185,7 +185,7 @@ class DetPostProcessV8 : public BasePostProcess
                         uint32 grid_offset = row_offset + grid_x;
 
                         // 获取当前已检测到的目标数量
-                        uint32 output_idx = result.get_obj_count();
+                        size_t output_idx = result.get_obj_count();
                         if (output_idx > this->max_det)
                         {
                             // 超过最大检测数, 直接退出

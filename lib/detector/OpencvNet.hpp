@@ -314,15 +314,16 @@ class OpencvNet : public BaseNet
             // yolov8n-p2 输入宽640 输出四个特征图 160 -> 80 -> 40 -> 20 (4个)
             // 输出节点名称为 850 : 160, 911 : 80, 972 : 40, 1033 : 20
             // outLayerNames 顺序却是 1033, 850, 972, 911 导致出现的问题, 所以在这里替换为 动态匹配方式再赋值
-            for (uint32 i = 0; i < net_outputs.size(); ++i)  // 遍历 OpenCV 输出特征图
+            for (size_t i = 0; i < net_outputs.size(); ++i)  // 遍历 OpenCV 输出特征图
             {
                 for (uint32 j = 0; j < this->nl; ++j)  // 遍历 每一层
                 {
                     // 保证 (batch_size, channel, height, width) 数量是正确的
-                    if (net_outputs[i].size[0] == this->batch_size        // batch size
-                        && net_outputs[i].size[1] == this->na * this->no  // channel
-                        && net_outputs[i].size[2] == this->net_out_h[j]   // height
-                        && net_outputs[i].size[3] == this->net_out_w[j]   // width
+                    // cv::Mat::size 返回 int, 需要显式转换为 uint32 以消除符号不匹配警告
+                    if (static_cast<uint32>(net_outputs[i].size[0]) == this->batch_size        // batch size
+                        && static_cast<uint32>(net_outputs[i].size[1]) == this->na * this->no  // channel
+                        && static_cast<uint32>(net_outputs[i].size[2]) == this->net_out_h[j]   // height
+                        && static_cast<uint32>(net_outputs[i].size[3]) == this->net_out_w[j]   // width
                     )
                     {
                         // 记录输出特征图的维度信息和数据个数, 方便调试

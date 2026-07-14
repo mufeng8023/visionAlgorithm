@@ -292,7 +292,7 @@ class PosePostProcess26 : public BasePostProcess
                         }
 
                         // 获取当前已检测到的目标数量
-                        uint32 output_idx = result.get_obj_count();
+                        size_t output_idx = result.get_obj_count();
                         // 扩展result缓冲区, 并标记为有效
                         result.expand_obj();
                         result.set_valid(output_idx, true);
@@ -371,7 +371,7 @@ class PosePostProcess26 : public BasePostProcess
                         const float32* data = result[output_idx];
 
                         // 可能存在一个位置输出多个类别的情况, 所以使用 for
-                        for (uint32 idx = 1; idx < class_infos.size(); ++idx)
+                        for (size_t idx = 1; idx < class_infos.size(); ++idx)
                         {
                             // 现将最后一个目标复制一下
                             result.push_back(data);
