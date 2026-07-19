@@ -55,6 +55,8 @@
 
 namespace tracker
 {
+namespace bytetrack
+{
 
 /***
  * @description: ByteTrack 跟踪器;
@@ -440,6 +442,7 @@ class ByteTracker : public BaseTracker
     }
 };
 
+}  // namespace bytetrack
 }  // namespace tracker
 
 #endif  // !__BYTETRACKER__H__

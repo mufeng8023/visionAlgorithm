@@ -34,6 +34,8 @@
 
 namespace tracker
 {
+namespace bytetrack
+{
 
 // 匹配结果结构 (ByteTrack 专用);
 struct ByteMatchResult
@@ -389,6 +391,7 @@ inline void remove_duplicate_stracks(std::vector<BytetrackTrack>& resa,      //
             resb.push_back(tracks_b[j]);
 }
 
+}  // namespace bytetrack
 }  // namespace tracker
 
 #endif  // !__BYTETRACK_MATCHING__H__

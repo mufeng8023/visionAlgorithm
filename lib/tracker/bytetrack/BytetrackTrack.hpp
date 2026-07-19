@@ -31,6 +31,8 @@
 
 namespace tracker
 {
+namespace bytetrack
+{
 
 /***
  * @description: ByteTrack 算法的轨迹类
@@ -471,6 +473,7 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
     }
 };
 
+}  // namespace bytetrack
 }  // namespace tracker
 
 #endif  // !__BYTETRACKTRACK__H__

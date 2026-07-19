@@ -94,6 +94,8 @@
 
 namespace tracker
 {
+namespace bytetrack
+{
 
 // ---- 安全分配内存的宏 ----
 // 功能: 分配 n 个类型为 t 的元素, 通过 x 返回;
@@ -885,6 +887,7 @@ inline float64 lapjv(const std::vector<std::vector<float32>>& cost,  //
 #undef LAP_FREE
 #undef LAP_SWAP_INDICES
 
+}  // namespace bytetrack
 }  // namespace tracker
 
 #endif  // !__LAPJV__H__
