@@ -108,6 +108,17 @@ void parser_ini_tracker_config(const std::string& ini_path, TrackerConfig& confi
     config.expand_box_rate = static_cast<float32>(ini_parser.get_double("track", "expand_box_rate", 0.0));
     LOG_DEFAULT_INFO("expand_box_rate:%f", config.expand_box_rate);
 
+    // ByteTrack 第二次关联阈值 (低分检测 vs 未匹配 Tracked 轨迹, 默认 0.5)
+    // 应比 match_thresh 更宽松, 允许低分检测框的模糊匹配;
+    config.match_thresh_low = static_cast<float32>(ini_parser.get_double("track", "match_thresh_low", 0.5));
+    LOG_DEFAULT_INFO("match_thresh_low:%f", config.match_thresh_low);
+
+    // ByteTrack 第三次关联阈值 (未确认轨迹 vs 剩余高分检测, 默认 0.7)
+    // 应比 match_thresh 更严格, 防止未确认轨迹错误匹配;
+    config.match_thresh_unconfirmed =
+        static_cast<float32>(ini_parser.get_double("track", "match_thresh_unconfirmed", 0.7));
+    LOG_DEFAULT_INFO("match_thresh_unconfirmed:%f", config.match_thresh_unconfirmed);
+
     // 余弦距离融合权重 (DeepSORT 专用, 默认 0.98)
     // 公式: combined = (1 - lambda) * 马氏距离 + lambda * 余弦距离;
     // lambda 越大, 越信任外观特征 (余弦距离), 典型值: 0.98;
