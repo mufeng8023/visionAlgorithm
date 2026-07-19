@@ -82,6 +82,10 @@ typedef struct
     uint32 reid_feature_dim = 0;
     // 余弦距离阈值, 用于 ReID 特征匹配时的代价上限
     float32 max_cosine_distance = 0.2;
+    // 余弦距离融合权重 (DeepSORT 专用);
+    // 公式: combined = (1 - lambda) * 马氏距离 + lambda * 余弦距离;
+    // lambda 越大, 越信任外观特征 (余弦距离); 典型值 0.98;
+    float32 lambda_cosine_weight = 0.98f;
 
 } TrackerConfig;
 

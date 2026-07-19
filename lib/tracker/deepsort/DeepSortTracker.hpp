@@ -213,15 +213,16 @@ class DeepSORTTracker : public BaseTracker
         std::vector<std::vector<float32>> features;        // 空: 不使用 ReID;
         std::vector<std::vector<float32>> track_features;  // 空: 不使用 ReID;
 
-        MatchResult match_cascade = cascade_matching(&this->_kalman_filter,             //
-                                                     this->_config.max_iou_distance,    //
-                                                     this->_config.max_age,             //
-                                                     track_ptrs,                        //
-                                                     detections,                        //
-                                                     confirmed_tracks,                  //
-                                                     features,                          //
-                                                     track_features,                    //
-                                                     this->_config.max_cosine_distance  //
+        MatchResult match_cascade = cascade_matching(&this->_kalman_filter,              //
+                                                     this->_config.max_iou_distance,     //
+                                                     this->_config.max_age,              //
+                                                     track_ptrs,                         //
+                                                     detections,                         //
+                                                     confirmed_tracks,                   //
+                                                     features,                           //
+                                                     track_features,                     //
+                                                     this->_config.max_cosine_distance,  //
+                                                     this->_config.lambda_cosine_weight  //
         );
 
         // ---- 准备 IoU 匹配的轨迹候选 ----

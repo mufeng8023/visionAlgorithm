@@ -17,7 +17,7 @@
  *
  *  Step 1 - 级联匹配 (Cascade Matching):
  *    优先匹配"最近更新"的轨迹 (time_since_update 小的优先);
- *    距离度量 = 马氏距离 + lambda * 余弦距离;
+ *    距离度量 = (1 - lambda) * 马氏距离 + lambda * 余弦距离;
  *    门控: 马氏距离超过卡方阈值(9.4877)的匹配被拒绝;
  *          余弦距离超过 max_cosine_distance 的匹配被拒绝;
  *
@@ -224,11 +224,12 @@ inline vector2D<float32> cal_gating_distance(KalmanFilter* kf,                  
  * @description: 计算融合距离矩阵 (马氏距离 + 余弦距离);
  *               DeepSORT 级联匹配中使用的组合距离;
  *
- *               公式: combined_dist = mahala_dist + lambda * cosine_dist;
- *               其中 lambda 通常取 0.98, 表示更信任外观特征 (余弦距离);
+ *               公式 (DeepSORT 论文原始定义):
+ *               combined_dist = (1 - lambda) * mahala_dist + lambda * cosine_dist;
+ *               其中 lambda 通常取 0.98, 表示更信任外观特征 (余弦距离), 运动模型 (马氏距离) 辅助;
  *
  *               @note 当未配置 ReID 时, cosine_dist 是全零矩阵,
- *               此时 combined_dist = mahala_dist, 等价格纯马氏距离匹配;
+ *               此时 combined_dist = (1 - lambda) * mahala_dist, 退化为马氏距离匹配;
  *
  * @param mahala_dist   const std::vector<std::vector<float32>>& : 马氏距离矩阵;
  * @param cosine_dist   const std::vector<std::vector<float32>>& : 余弦距离矩阵;
@@ -243,12 +244,13 @@ inline vector2D<float32> cal_combined_distance(const vector2D<float32>& mahala_d
     size_t cols = (rows > 0) ? mahala_dist[0].size() : 0;
     vector2D<float32> cost_matrix(rows, std::vector<float32>(cols, 0.0f));
 
-    // 逐元素相加: combined[i][j] = mahala[i][j] + lambda * cosine[i][j];
+    // 凸组合: combined[i][j] = (1 - lambda) * mahala[i][j] + lambda * cosine[i][j];
+    float32 inv_lambda = 1.0f - lambda;
     for (size_t i = 0; i < rows; i++)
     {
         for (size_t j = 0; j < cols; j++)
         {
-            cost_matrix[i][j] = mahala_dist[i][j] + lambda * cosine_dist[i][j];
+            cost_matrix[i][j] = inv_lambda * mahala_dist[i][j] + lambda * cosine_dist[i][j];
         }
     }
 
@@ -447,7 +449,8 @@ inline MatchResult cascade_matching(KalmanFilter* kf,                          /
                                     const std::vector<int32>& track_indices,   //
                                     const vector2D<float32>& features,         //
                                     const vector2D<float32>& track_features,   //
-                                    float32 max_cosine_distance)               //
+                                    float32 max_cosine_distance,               //
+                                    float32 lambda_cosine_weight)              //
 {
     MatchResult final_res;
 
@@ -530,8 +533,8 @@ inline MatchResult cascade_matching(KalmanFilter* kf,                          /
         // ---- 计算余弦距离矩阵 ----
         vector2D<float32> cosine_dist = cal_cosine_distance(level_features, level_track_features);
 
-        // ---- 融合距离: combined = maha + lambda * cosine ----
-        vector2D<float32> combined_dist = cal_combined_distance(maha_dist, cosine_dist);
+        // ---- 融合距离: combined = (1 - lambda) * maha + lambda * cosine ----
+        vector2D<float32> combined_dist = cal_combined_distance(maha_dist, cosine_dist, lambda_cosine_weight);
 
         // ---- 门控过滤: 马氏距离超过阈值 -> 无穷大 ----
         gate_cost_matrix(kf,                    //
