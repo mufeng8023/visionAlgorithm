@@ -45,6 +45,7 @@
 #include "tracker/BoxObject.hpp"
 #include "tracker/KalmanFilter.hpp"
 #include "tracker/deepsort/DeepSortTrack.hpp"
+#include "tracker/deepsort/NNMetric.hpp"
 #include "tracker/deepsort/matching.hpp"
 
 namespace tracker
@@ -65,6 +66,10 @@ namespace deepsort
 class DeepSORTTracker : public BaseTracker
 {
    public:
+    // _nn_metric: 近邻特征度量库, 维护每个轨迹的 ReID 特征历史;
+    // 当 use_reid=true 时, 级联匹配使用此库提供轨迹的代表特征向量;
+    NNMetric _nn_metric;
+
     // tracks: 当前所有轨迹 (Tentative + Confirmed + 待删除);
     // 使用 shared_ptr 管理生命周期, 外部可持有轨迹指针而不用担心野指针;
     std::vector<std::shared_ptr<DeepSortTrack>> tracks;
@@ -76,9 +81,11 @@ class DeepSORTTracker : public BaseTracker
      *               _frame_id = 0, _next_id = 1, _kalman_filter, _config;
      * @param config const TrackerConfig& : 跟踪器配置;
      */
-    explicit DeepSORTTracker(const TrackerConfig& config) : BaseTracker(config)
+    explicit DeepSORTTracker(const TrackerConfig& config)
+        : BaseTracker(config), _nn_metric(config.max_cosine_distance, 100)
     {
-        // 构造函数体为空, 初始化由基类完成;
+        // 基类 BaseTracker(config) 初始化 _frame_id, _next_id, _kalman_filter, _config;
+        // _nn_metric 使用配置中的余弦距离阈值和默认 budget=100 初始化;
     }
 
     /***
@@ -118,7 +125,38 @@ class DeepSORTTracker : public BaseTracker
         // ---- 第 2 步: 数据关联 ----
         this->_match(detections);
 
-        // ---- 第 3 步: 清理已删除轨迹 ----
+        // ---- 第 3 步: 更新 NNMetric 特征库 (在清理轨迹之前执行) ----
+        // 在轨迹被删除之前, 先收集本帧匹配成功的特征和所有活跃轨迹 ID;
+        // 必须先于 _remove_deleted_tracks(), 否则已删除轨迹的特征无法被正确清理;
+        if (this->_config.use_reid)
+        {
+            std::vector<int32> active_targets;
+            std::vector<std::pair<int32, std::vector<float32>>> tid_feats;
+            for (size_t i = 0; i < this->tracks.size(); i++)
+            {
+                if (!this->tracks[i]->is_deleted())
+                {
+                    // 收集活跃轨迹 ID (非删除状态), 用于清理 NNMetric 中失活轨迹的特征;
+                    active_targets.push_back(this->tracks[i]->track_id);
+                }
+
+                // 已确认 且 本帧匹配成功 (time_since_update==0) 且有特征的轨迹, 才写入 NNMetric;
+                // 关键: 必须检查 time_since_update==0, 否则未匹配帧的旧特征会被反复写入,
+                //       导致 NNMetric 特征库被同一帧旧特征填满 budget 次 (特征污染);
+                // time_since_update 在 predict() 中 +1, 在 track->update() 匹配成功后归零;
+                if (this->tracks[i]->is_confirmed() &&          //
+                    this->tracks[i]->time_since_update == 0 &&  //
+                    !this->tracks[i]->features.empty())
+                {
+                    tid_feats.push_back(std::make_pair(this->tracks[i]->track_id,  //
+                                                       this->tracks[i]->features));
+                }
+            }
+
+            this->_nn_metric.partial_fit(tid_feats, active_targets);
+        }
+
+        // ---- 第 4 步: 清理已删除轨迹 ----
         this->_remove_deleted_tracks();
     }
 
@@ -150,6 +188,9 @@ class DeepSORTTracker : public BaseTracker
         // 调用基类 reset: 重置 _frame_id 和 _next_id;
         BaseTracker::reset();
         this->tracks.clear();
+
+        // 同步清空 NNMetric 特征库, 防止旧特征污染下次跟踪;
+        this->_nn_metric.samples.clear();
     }
 
    private:
@@ -208,10 +249,25 @@ class DeepSORTTracker : public BaseTracker
         }
 
         // ---- 级联匹配: 已确认轨迹 x 检测 ----
-        // 注意: 当没有 ReID 特征时, features / track_features 传入空列表;
-        // 余弦距离矩阵将返回零矩阵, 级联匹配退化为纯马氏距离匹配;
-        std::vector<std::vector<float32>> features;        // 空: 不使用 ReID;
-        std::vector<std::vector<float32>> track_features;  // 空: 不使用 ReID;
+        // 当 use_reid=true 时, 从检测框和 NNMetric 特征库中提取特征;
+        // 当 use_reid=false 时, 传入空列表, 级联匹配退化为纯马氏距离匹配;
+        std::vector<std::vector<float32>> features;        // 检测框的 ReID 特征列表;
+        std::vector<std::vector<float32>> track_features;  // 轨迹的代表特征列表 (NNMetric 均值);
+
+        if (this->_config.use_reid)
+        {
+            // 提取各检测框的 ReID 特征 (由外部检测器填充到 BoxObject::feature);
+            for (size_t j = 0; j < detections.size(); j++)
+            {
+                features.push_back(detections[j].feature);
+            }
+
+            // 提取各轨迹的代表特征 (从 NNMetric 特征库取均值, 融合了历史帧信息);
+            for (size_t k = 0; k < track_ptrs.size(); k++)
+            {
+                track_features.push_back(this->_nn_metric.get_mean_feature(track_ptrs[k]->track_id));
+            }
+        }
 
         MatchResult match_cascade = cascade_matching(&this->_kalman_filter,              //
                                                      this->_config.max_iou_distance,     //
@@ -222,8 +278,7 @@ class DeepSORTTracker : public BaseTracker
                                                      features,                           //
                                                      track_features,                     //
                                                      this->_config.max_cosine_distance,  //
-                                                     this->_config.lambda_cosine_weight  //
-        );
+                                                     this->_config.lambda_cosine_weight);
 
         // ---- 准备 IoU 匹配的轨迹候选 ----
         // 包括: 未确认轨迹 + 级联匹配中 time_since_update == 1 的未匹配确认轨迹;
@@ -247,8 +302,7 @@ class DeepSORTTracker : public BaseTracker
                                              detections,                          //
                                              iou_track_candidates,                //
                                              match_cascade.unmatched_detections,  //
-                                             this->_config.max_iou_distance       //
-        );
+                                             this->_config.max_iou_distance);
 
         // ================================================================
         // 处理匹配结果

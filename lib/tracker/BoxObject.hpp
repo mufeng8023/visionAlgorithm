@@ -145,6 +145,13 @@ struct BoxObject
     // 对应 BaseTrack::cls_id;
     int32 cls_id = -1;
 
+    // feature: ReID 外观特征向量 (可选, 仅在 DeepSORT 启用 ReID 时填充);
+    // 由外部 ReID 模型 (如 OSNet, MobileNetV2) 提取, 长度由 reid_feature_dim 决定;
+    // 当不使用 ReID 时此字段为空向量, 不占用额外堆内存 (zero-cost default);
+    // 在 DeepSortTracker 中, 匹配后会将此特征写入轨迹的 features 字段,
+    // 再由 NNMetric::partial_fit() 统一存入滚动特征库;
+    std::vector<float32> feature;
+
     // ================================================================
     // 构造函数
     // ================================================================

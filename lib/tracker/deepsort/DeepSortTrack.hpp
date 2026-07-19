@@ -63,6 +63,12 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
     // 参考 deepsort Track::time_since_update
     int32 time_since_update = 0;
 
+    // features: 当前帧从匹配检测框中提取的 ReID 外观特征向量;
+    // 在 update() 调用时, 从 detection.feature 复制过来;
+    // 由跟踪器在每帧匹配后读取, 并交给 NNMetric::partial_fit() 存入特征库;
+    // 若未启用 ReID, 此字段始终为空向量;
+    std::vector<float32> features;
+
    protected:
     // _n_init: 轨迹确认所需的最少匹配帧数 (Tentative -> Confirmed 需要 hits >= _n_init)
     // 参考 deepsort Track::_n_init
@@ -222,6 +228,11 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
         // 从 BoxObject 中读取 score 和 cls_id;
         this->score = detection.score;
         this->cls_id = detection.cls_id;
+
+        // ---- 同步 ReID 特征 (如果 BoxObject 携带了 feature) ----
+        // 将检测框的 ReID 特征复制到轨迹的 features 字段;
+        // 跟踪器在本帧结束时读取此字段, 并调用 NNMetric::partial_fit() 存入特征库;
+        this->features = detection.feature;
 
         // ---- 第 4 步: 将扩展框转为 xyah 进行卡尔曼更新 ----
         // 使用基类的 get_xyah() 方法, 该方法基于 ltwh_expand 计算;

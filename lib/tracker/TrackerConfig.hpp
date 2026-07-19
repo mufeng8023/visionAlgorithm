@@ -69,6 +69,15 @@ typedef struct
     // IoU 匹配阈值, 用于第二关联阶段以及未确认轨迹的匹配
     float32 max_iou_distance = 0.7;
 
+    // ByteTrack 第二次关联匹配阈值 (低分检测 vs 未匹配确认轨迹);
+    // 应比 match_thresh 更宽松, 允许低分检测框的模糊匹配;
+    // 参考原版 ByteTrack 中第二次关联硬编码值 0.5;
+    float32 match_thresh_low = 0.5f;
+    // ByteTrack 第三次关联匹配阈值 (未确认轨迹 vs 剩余高分检测);
+    // 应比 match_thresh 更严格, 防止未确认轨迹与错误检测框匹配;
+    // 参考原版 ByteTrack 中第三次关联硬编码值 0.7;
+    float32 match_thresh_unconfirmed = 0.7f;
+
     // 边界框扩展率 (通用参数)
     // 卡尔曼操作前将检测框向外扩展的比例, 默认 0.0 表示不扩展;
     // 扩展后的框用于卡尔曼的 initiate/update, 写回时自动恢复原始坐标;
