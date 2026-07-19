@@ -63,6 +63,8 @@
 
 namespace tracker
 {
+namespace deepsort
+{
 
 // 辅助宏 (与 Munkres 原版 matrix.h 保持一致);
 // 用于返回两个值中的较小/较大者, 避免标准库 min/max 的模板推导问题;
@@ -964,6 +966,7 @@ inline std::vector<std::pair<int32, int32>> hungarian_solve(const std::vector<st
 #undef HUN_XYZMIN
 #undef HUN_XYZMAX
 
+}  // namespace deepsort
 }  // namespace tracker
 
 #endif  // !__DEEPSORT_HUNGARIAN__H__

@@ -31,6 +31,8 @@
 
 namespace tracker
 {
+namespace deepsort
+{
 
 /***
  * @description: DeepSORT 算法的轨迹类
@@ -322,6 +324,7 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
     }
 };
 
+}  // namespace deepsort
 }  // namespace tracker
 
 #endif  // !__DEEPSORTTRACK__H__

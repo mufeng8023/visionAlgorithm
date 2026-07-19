@@ -49,6 +49,8 @@
 
 namespace tracker
 {
+namespace deepsort
+{
 
 /***
  * @description: DeepSORT 跟踪器;
@@ -372,6 +374,7 @@ class DeepSORTTracker : public BaseTracker
     }
 };
 
+}  // namespace deepsort
 }  // namespace tracker
 
 #endif  // !__DEEPSORTTRACKER__H__

@@ -47,6 +47,8 @@
 
 namespace tracker
 {
+namespace deepsort
+{
 
 // 无穷大成本 (用于门控过滤);
 // 当马氏距离超过卡方阈值时, 将成本矩阵对应位置设为此值, 阻止匹配;
@@ -728,6 +730,7 @@ inline MatchResult iou_matching(std::vector<DeepSortTrack*>& tracks,          //
     return min_cost_matching(cost_matrix, max_iou_distance, track_indices, detection_indices);
 }
 
+}  // namespace deepsort
 }  // namespace tracker
 
 #endif  // !__DEEPSORT_MATCHING__H__
