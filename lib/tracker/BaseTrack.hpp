@@ -41,8 +41,8 @@
 #include <array>
 #include <vector>
 
+#include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "types.hpp"
 
 namespace tracker
@@ -126,11 +126,11 @@ class BaseTrack
     //   a      : 宽高比 (width / height)
     //   h      : 目标框高度 (像素)
     //   v_*    : 对应的速度分量 (像素/帧)
-    KAL_MEAN mean;
+    BOX_MEAN mean;
 
     // covariance: 卡尔曼滤波器状态协方差 (8x8 矩阵)
     // 对角线的值越大, 说明对应分量的不确定度越大
-    KAL_COVA covariance;
+    BOX_COVA covariance;
 
    protected:
     // ================================================================
@@ -320,7 +320,7 @@ class BaseTrack
     /***
      * @description: 一次性获取 xyah 格式的完整数组 (卡尔曼滤波器标准输入)
      *               基于扩展框计算;
-     *               返回 {cx, cy, a, h}, 等价于 KAL_HMEAN;
+     *               返回 {cx, cy, a, h}, 等价于 BOX_HMEAN;
      *               通过返回 std::array 实现值语义, 无额外开销 (RVO);
      *
      *               注意: 这里返回的是**扩展空间**中的 xyah;

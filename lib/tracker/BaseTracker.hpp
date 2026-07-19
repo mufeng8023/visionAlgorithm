@@ -14,10 +14,10 @@
 #define __BASETRACKER__H__
 
 #include <memory>  // std::shared_ptr
-#include <vector>  // std::vector
+#include <vector>
 
+#include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "tracker/TrackerConfig.hpp"
 
 namespace tracker
@@ -59,11 +59,11 @@ class BaseTracker
     // 从 1 开始, 与 DeepSORT 原版 _next_idx 保持一致;
     int32 _next_id = 1;
 
-    // _kalman_filter: 卡尔曼滤波器实例;
-    // 注意! DeepSORT 是"所有轨迹共享同一个 KalmanFilter 对象"(指针传递);
-    // ByteTrack 是"每个轨迹持有自己的 KalmanFilter 结果副本";
-    // 虽然用法不同, 但 KalmanFilter 对象本身是无状态的, 两种方式都正确;
-    KalmanFilter _kalman_filter;
+    // _kalman_filter: KFBox 卡尔曼滤波器实例;
+    // 注意! DeepSORT 是"所有轨迹共享同一个 KFBox 对象"(指针传递);
+    // ByteTrack 是"每个轨迹持有自己的 KFBox 结果副本";
+    // 虽然用法不同, 但 KFBox 对象本身是无状态的, 两种方式都正确;
+    KFBox _kalman_filter;
 
     // _config: 跟踪器配置 (从 ini 文件读取);
     // 包含 track_thresh, high_thresh, match_thresh, max_age, n_init 等参数;
@@ -131,9 +131,9 @@ class BaseTracker
     /***
      * @description: 获取卡尔曼滤波器引用;
      *               用于 predict / update / gating_distance 等操作;
-     * @return KalmanFilter&;
+     * @return KFBox& : 当前跟踪器持有的 KFBox 实例引用;
      */
-    inline KalmanFilter& kalman_filter() { return this->_kalman_filter; }
+    inline KFBox& kalman_filter() { return this->_kalman_filter; }
 
     /***
      * @description: 获取跟踪器配置;

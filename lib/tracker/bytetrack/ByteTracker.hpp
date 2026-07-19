@@ -50,7 +50,6 @@
 
 #include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "tracker/bytetrack/BytetrackTrack.hpp"
 #include "tracker/bytetrack/matching.hpp"
 

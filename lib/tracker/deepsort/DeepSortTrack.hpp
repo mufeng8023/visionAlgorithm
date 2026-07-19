@@ -25,8 +25,8 @@
 #define __DEEPSORTTRACK__H__
 
 #include "tracker/BaseTrack.hpp"
+#include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "tracker/TrackState.hpp"
 
 namespace tracker
@@ -96,8 +96,8 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
      *               mean 中的位置分量 (cx, cy, a, h) 已在"扩展空间"中 (如果扩展率 > 0);
      *               构造函数中同时初始化 ltwh (原始框) 和 ltwh_expand (扩展框);
      *
-     * @param mean             const KAL_MEAN&  : 卡尔曼初始状态均值 (由 KalmanFilter::initiate() 创建)
-     * @param covariance       const KAL_COVA& : 卡尔曼初始状态协方差
+     * @param mean             const BOX_MEAN&  : 卡尔曼初始状态均值 (由 KalmanFilter::initiate() 创建)
+     * @param covariance       const BOX_COVA& : 卡尔曼初始状态协方差
      * @param track_id         int32 : 轨迹 ID
      * @param frame_id         int32 : 创建时的帧 ID
      * @param n_init           int32 : 轨迹确认所需的最少匹配帧数
@@ -105,8 +105,8 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
      * @param det_box          const BoxObject& : 当前帧检测框信息 (包含 ltwh 原始框 和 ltwh_expand 扩展框);
      * @param expand_box_rate  float32 : 边界框扩展率, 从配置传入, 默认 0.0
      */
-    DeepSortTrack(const KAL_MEAN& mean,        //
-                  const KAL_COVA& covariance,  //
+    DeepSortTrack(const BOX_MEAN& mean,        //
+                  const BOX_COVA& covariance,  //
                   int32 track_id,              //
                   int32 frame_id,              //
                   int32 n_init,                //
@@ -171,9 +171,9 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
      *               写入 ltwh_expand, 确保扩展框与预测状态一致;
      *               ltwh (原始框) 不受影响;
      *
-     * @param kf KalmanFilter* : 卡尔曼滤波器指针 (所有轨迹共享)
+     * @param kf KFBox* : KFBox 卡尔曼滤波器指针 (所有轨迹共享)
      */
-    void predict(KalmanFilter* kf)
+    void predict(KFBox* kf)
     {
         // 调用卡尔曼预测: mean' = F * mean, cov' = F * cov * F^T + Q;
         kf->predict(this->mean, this->covariance);
@@ -202,11 +202,11 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
      *                     卡尔曼更新仅在扩展空间 (ltwh_expand) 中进行;
      *                     this->ltwh 始终保持原始检测框的值, 不会被卡尔曼覆盖;
      *
-     * @param kf          KalmanFilter* : 卡尔曼滤波器指针
+     * @param kf          KFBox* : KFBox 卡尔曼滤波器指针
      * @param detection   const BoxObject& : 当前帧匹配到的检测框信息
      *                    包含 ltwh (原始框) 和 ltwh_expand (扩展框);
      */
-    void update(KalmanFilter* kf, const BoxObject& detection)
+    void update(KFBox* kf, const BoxObject& detection)
     {
         // ---- 第 1 步: 更新原始框 (来自检测数据的原始 ltwh) ----
         // this->ltwh 始终保持检测器原始输出, 永不包含卡尔曼的修正;
@@ -238,11 +238,11 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
         // 使用基类的 get_xyah() 方法, 该方法基于 ltwh_expand 计算;
         // 返回 [cx, cy, a, h] (扩展空间);
         std::array<float32, 4> xyah_arr = this->get_xyah();
-        KAL_HMEAN xyah;
+        BOX_HMEAN xyah;
         xyah << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
 
         // 卡尔曼更新: K, mean = mean' + K*(z - H*mean'), cov = (I - K*H)*P';
-        KAL_DATA pa = kf->update(this->mean, this->covariance, xyah);
+        BOX_DATA pa = kf->update(this->mean, this->covariance, xyah);
         this->mean = pa.first;
         this->covariance = pa.second;
 

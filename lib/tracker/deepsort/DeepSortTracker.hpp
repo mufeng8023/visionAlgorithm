@@ -39,11 +39,10 @@
 #define __DEEPSORTTRACKER__H__
 
 #include <memory>  // std::shared_ptr
-#include <vector>  // std::vector
+#include <vector>
 
 #include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "tracker/deepsort/DeepSortTrack.hpp"
 #include "tracker/deepsort/NNMetric.hpp"
 #include "tracker/deepsort/matching.hpp"
@@ -375,12 +374,12 @@ class DeepSORTTracker : public BaseTracker
         // 扩展框比原始框大, 包含了边界框的缩放裕量;
         // 这是 DeepSORT 原版的做法, 可以提高跟踪的鲁棒性;
         std::array<float32, 4> xyah_arr = BoxObject::ltwh_to_xyah(detection.ltwh_expand);
-        KAL_HMEAN xyah;
+        BOX_HMEAN xyah;
         xyah << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
 
         // ---- 卡尔曼初始化 ----
         // initiate() 返回 {初始状态均值, 初始状态协方差};
-        KAL_DATA init_data = this->_kalman_filter.initiate(xyah);
+        BOX_DATA init_data = this->_kalman_filter.initiate(xyah);
 
         // ---- 分配 track_id ----
         // next_track_id() 自增基类的 _next_id, 保证 ID 唯一;

@@ -39,9 +39,9 @@
 #define __DEEPSORT_MATCHING__H__
 
 #include <cmath>   // std::sqrt
-#include <vector>  // std::vector
+#include <vector> 
 
-#include "tracker/KalmanFilter.hpp"
+#include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/deepsort/DeepSortTrack.hpp"
 #include "tracker/deepsort/hungarian.hpp"
 
@@ -159,7 +159,7 @@ inline vector2D<float32> cal_cosine_distance(const vector2D<float32>& features, 
  * @param detection_indices const std::vector<int32>& : 参与匹配的检测索引;
  * @return std::vector<std::vector<float32>> : 马氏距离矩阵 [n_tracks x n_dets];
  */
-inline vector2D<float32> cal_gating_distance(KalmanFilter* kf,                             //
+inline vector2D<float32> cal_gating_distance(KFBox* kf,                                    //
                                              std::vector<DeepSortTrack*>& tracks,          //
                                              const std::vector<BoxObject>& detections,     //
                                              const std::vector<int32>& track_indices,      //
@@ -177,7 +177,7 @@ inline vector2D<float32> cal_gating_distance(KalmanFilter* kf,                  
     // ---- 收集所有检测框的 xyah 测量值 ----
     // xyah = [cx, cy, 宽高比, 高度];
     // 使用 ltwh_expand (扩展框) 构建, 因为扩展框考虑了边框的缩放;
-    std::vector<KAL_HMEAN> measurements;
+    std::vector<BOX_HMEAN> measurements;
     measurements.reserve(n_dets);  // 预先分配内存, 提高性能;
 
     // 遍历所有 候选检测框 都转为 卡尔曼观测向量mean
@@ -191,7 +191,7 @@ inline vector2D<float32> cal_gating_distance(KalmanFilter* kf,                  
         // ltwh_to_xyah: [left, top, width, height] -> [cx, cy, w/h, height];
         std::array<float32, 4> xyah_arr = BoxObject::ltwh_to_xyah(det.ltwh_expand);
         // 观测值矩阵
-        KAL_HMEAN m;
+        BOX_HMEAN m;
         m << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
         measurements.push_back(m);
     }
@@ -278,7 +278,7 @@ inline vector2D<float32> cal_combined_distance(const vector2D<float32>& mahala_d
  * @param detection_indices const std::vector<int32>& : 检测索引;
  * @param gated_cost      float32 : 超过门控时的替代成本值 (默认 INFTY_COST_DEEP);
  */
-inline void gate_cost_matrix(KalmanFilter* kf,                             //
+inline void gate_cost_matrix(KFBox* kf,                                    //
                              vector2D<float32>& cost_matrix,               //
                              std::vector<DeepSortTrack*>& tracks,          //
                              const std::vector<BoxObject>& detections,     //
@@ -288,21 +288,21 @@ inline void gate_cost_matrix(KalmanFilter* kf,                             //
 {
     // 卡方 95% 置信区间阈值 (4 自由度);
     // 4 自由度对应我们的测量维度 [cx, cy, a, h];
-    float64 gating_threshold = KalmanFilter::chi2inv95[4];
+    float64 gating_threshold = KFBox::chi2inv95[4];
     // 候选轨迹数量
     int32 n_tracks = static_cast<int32>(track_indices.size());
     // 候选目标数量
     int32 n_dets = static_cast<int32>(detection_indices.size());
 
     // ---- 收集所有检测框的 xyah 测量值 ----
-    std::vector<KAL_HMEAN> measurements;
+    std::vector<BOX_HMEAN> measurements;
     measurements.reserve(static_cast<size_t>(n_dets));
     for (int32 j = 0; j < n_dets; j++)
     {
         int32 det_idx = detection_indices[j];
         const BoxObject& det = detections[det_idx];
         std::array<float32, 4> xyah_arr = BoxObject::ltwh_to_xyah(det.ltwh_expand);
-        KAL_HMEAN m;
+        BOX_HMEAN m;
         m << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
         measurements.push_back(m);
     }
@@ -441,7 +441,7 @@ inline MatchResult min_cost_matching(const vector2D<float32>& cost_matrix,      
  * @param detection_indices const std::vector<int32>& : 参与匹配的检测索引;
  * @return MatchResult : 匹配结果;
  */
-inline MatchResult cascade_matching(KalmanFilter* kf,                          //
+inline MatchResult cascade_matching(KFBox* kf,                                 //
                                     float32 max_distance,                      //
                                     int32 cascade_depth,                       //
                                     std::vector<DeepSortTrack*>& tracks,       //

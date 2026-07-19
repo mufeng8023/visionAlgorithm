@@ -25,8 +25,8 @@
 #include <vector>
 
 #include "tracker/BaseTrack.hpp"
+#include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/BoxObject.hpp"
-#include "tracker/KalmanFilter.hpp"
 #include "tracker/TrackState.hpp"
 
 namespace tracker
@@ -45,7 +45,7 @@ namespace bytetrack
  *               - cls_id / score 直接存储在基类, 外部直接通过 track->cls_id 读取
  *
  * @note 与 DeepSORT Track 的区别:
- *       - ByteTrack 持有 KalmanFilter 副本, DeepSORT 用指针引用
+ *       - ByteTrack 持有 KFBox 副本, DeepSORT 用指针引用
  *       - ByteTrack 使用 BoxObject 管理扩展框, DeepSORT 直接接收 mean 和 BoxObject
  *       - ByteTrack 没有 hits/age/time_since_update, DeepSORT 有
  *       - ByteTrack 状态流是 New->Tracked->Lost->Removed
@@ -54,9 +54,9 @@ namespace bytetrack
 class BytetrackTrack : public BaseTrack<ByteTrackState>
 {
    private:
-    // _kalman_filter: 卡尔曼滤波器对象 (每个轨迹持有自己的副本)
-    // 参考 bytetracker STrack::kalman_filter; 与 DeepSORT 共享全局 KF 不同;
-    KalmanFilter _kalman_filter;
+    // _kalman_filter: KFBox 卡尔曼滤波器对象 (每个轨迹持有自己的副本)
+    // 参考 bytetracker STrack::kalman_filter; 与 DeepSORT 共享全局 KFBox 不同;
+    KFBox _kalman_filter;
 
    public:
     /***
@@ -201,10 +201,10 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
      *               4. 更新状态为 Tracked
      *
      *               参考 bytetracker STrack::activate()
-     * @param kalman_filter KalmanFilter& : 卡尔曼滤波器对象 (拷贝到本地副本)
+     * @param kalman_filter KFBox& : 卡尔曼滤波器对象 (拷贝到本地副本)
      * @param frame_id      int32 : 当前帧 ID
      */
-    void activate(KalmanFilter& kalman_filter, int32 frame_id)
+    void activate(KFBox& kalman_filter, int32 frame_id)
     {
         // 拷贝卡尔曼滤波器 (每个轨迹持有独立副本, 与 DeepSORT 共享全局 KF 不同);
         this->_kalman_filter = kalman_filter;
@@ -218,12 +218,12 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
         // 基类的 get_xyah() 基于 ltwh_expand 计算, 返回 [cx, cy, a, h];
         // 扩展框给卡尔曼更宽松的搜索空间, 提高小目标跟踪鲁棒性;
         std::array<float32, 4> xyah_arr = this->get_xyah();
-        KAL_HMEAN xyah;
+        BOX_HMEAN xyah;
         xyah << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
 
         // 卡尔曼初始化: 创建初始状态 [cx, cy, a, h, 0, 0, 0, 0];
         // mean 中存储的是扩展空间中的状态 (与 ltwh_expand 一致);
-        KAL_DATA init_data = this->_kalman_filter.initiate(xyah);
+        BOX_DATA init_data = this->_kalman_filter.initiate(xyah);
         this->mean = init_data.first;
         this->covariance = init_data.second;
 
@@ -271,11 +271,11 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
         // ---- 第 3 步: 卡尔曼更新 ----
         // 基于 ltwh_expand 计算 xyah, 用于修正卡尔曼状态;
         std::array<float32, 4> xyah_arr = this->get_xyah();
-        KAL_HMEAN xyah;
+        BOX_HMEAN xyah;
         xyah << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
 
         // 卡尔曼更新: 用扩展后的检测框修正预测状态;
-        KAL_DATA update_data = this->_kalman_filter.update(this->mean, this->covariance, xyah);
+        BOX_DATA update_data = this->_kalman_filter.update(this->mean, this->covariance, xyah);
         this->mean = update_data.first;
         this->covariance = update_data.second;
 
@@ -343,12 +343,12 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
         // ---- 第 3 步: 从扩展框转 xyah 进行卡尔曼更新 ----
         // 基类的 get_xyah() 基于 ltwh_expand 计算, 返回 [cx, cy, a, h];
         std::array<float32, 4> xyah_arr = this->get_xyah();
-        KAL_HMEAN xyah;
+        BOX_HMEAN xyah;
         xyah << xyah_arr[0], xyah_arr[1], xyah_arr[2], xyah_arr[3];
 
         // 卡尔曼更新: 用扩展后的检测框修正预测状态;
         // 参考 bytetracker STrack::update() 中 kalman_filter.update 的调用;
-        KAL_DATA update_data = this->_kalman_filter.update(this->mean, this->covariance, xyah);
+        BOX_DATA update_data = this->_kalman_filter.update(this->mean, this->covariance, xyah);
         this->mean = update_data.first;
         this->covariance = update_data.second;
 
@@ -387,9 +387,9 @@ class BytetrackTrack : public BaseTrack<ByteTrackState>
      *               对非 Tracked 状态的轨迹将速度分量 v_h 清零 (防止时间间隔过长导致速度异常);
      *               参考 bytetracker STrack::multi_predict()
      * @param stracks       std::vector<BytetrackTrack*>& : 所有活跃轨迹的指针列表
-     * @param kalman_filter KalmanFilter& : 卡尔曼滤波器对象 (所有轨迹共用)
+     * @param kalman_filter KFBox& : 卡尔曼滤波器对象 (所有轨迹共用)
      */
-    static void multi_predict(std::vector<BytetrackTrack*>& stracks, KalmanFilter& kalman_filter)
+    static void multi_predict(std::vector<BytetrackTrack*>& stracks, KFBox& kalman_filter)
     {
         for (size_t i = 0; i < stracks.size(); i++)
         {
