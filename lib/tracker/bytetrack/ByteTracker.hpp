@@ -2,27 +2,27 @@
  * @Author       : gxs
  * @Date         : 2026-06-22 21:42:00
  * @LastEditors  : gxs
- * @LastEditTime : 2026-06-22 21:45:00
+ * @LastEditTime : 2026-07-19 14:00:00
  * @FilePath     : /visionAlgorithm/lib/tracker/bytetrack/ByteTracker.hpp
  * @Description  : ByteTrack 跟踪器实现;
  *                 基于高/低分检测框两次 IoU 关联的鲁棒跟踪器;
- *                 参考 /mnt/E/CodeFiles/C++/bytetracker/src/BYTETracker.cpp;
  *
  *                 ============================================================
  *                 ByteTrack 核心思想
  *                 ============================================================
  *
- *                 ByteTrack 的"Byte"来源于"Byte" (字节) ,
- *                 意思是"不放过任何一个检测框, 就像不放过任何一个字节".
+ *                 ByteTrack 的"Byte"来源于"Byte" (字节),
+ *                 意思是"不放过任何一个检测框, 就像不放过任何一个字节";
  *
  *                 传统跟踪器 (如 SORT) 只使用高置信度检测框进行关联,
- *                 低置信度检测框 (比如被遮挡时的检测) 就直接丢弃了.
+ *                 低置信度检测框 (比如被遮挡时的检测) 就直接丢弃了;
  *
- *                 ByteTrack 的创新在于: "低分检测框也有价值".
+ *                 ByteTrack 的创新在于: "低分检测框也有价值";
  *                 它通过两次关联来利用所有检测框:
  *
- *                 第一次关联 (高-高): 高置信度轨迹 x 高置信度检测;
- *                 第二次关联 (高-低): 未匹配高置信度轨迹 x 低置信度检测;
+ *                 关联设计 (三轮 IoU 匹配):
+ *                 - 轨迹池仅包含 Tracked+Lost 状态的轨迹 (New 状态不参与卡尔曼预测);
+ *                 - 未确认轨迹 (New 状态) 在分离后单独参与第三次关联;
  *
  *                 这样做的假设:
  *                 - 高分检测框通常是正确的检测 (目标清晰可见);
@@ -32,13 +32,14 @@
  *                 ============================================================
  *
  *                 核心流程:
- *                 1. 按置信度分流检测框 (高/低);
- *                 2. 卡尔曼预测所有已有轨迹;
- *                 3. 第一次关联: 已确认轨迹 x 高置信度检测 (IoU);
- *                 4. 第二次关联: 未匹配已确认轨迹 x 低置信度检测 (IoU);
- *                 5. 第三次关联: 未确认轨迹 x 剩余高置信度检测 (IoU);
- *                 6. 初始化新轨迹 (高置信度);
- *                 7. 轨迹状态维护 (New->Tracked->Lost->Removed);
+ *                 - 按置信度分流检测框 (高/低);
+ *                 - 将 tracked_stracks 分离为 active_tracked (Tracked) 和 unconfirmed (New);
+ *                 - 轨迹池 = active_tracked + lost_stracks, 进行卡尔曼预测;
+ *                 - 关联一: 轨迹池 x 高分检测 (阈值 match_thresh);
+ *                 - 关联二: 未匹配 Tracked 轨迹 x 低分检测 (阈值 match_thresh_low);
+ *                 - 关联三: 未确认轨迹 x 剩余高分检测 (阈值 match_thresh_unconfirmed);
+ *                 - 初始化新轨迹 (仅高分检测);
+ *                 - 更新状态列表并检查 lost_stracks 生命周期;
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
@@ -60,13 +61,13 @@ namespace bytetrack
 
 /***
  * @description: ByteTrack 跟踪器;
- *               继承 BaseTracker, 实现高低分检测框两次关联;
+ *               继承 BaseTracker, 实现高低分检测框三轮 IoU 关联;
  *
  *               轨迹状态机:
  *                New (新创建) --(连续 n_init 帧匹配成功)--> Tracked
- *                Tracked --(连续 max_age 帧未匹配)--> Lost
+ *                Tracked --(未匹配)--> Lost
  *                Lost --(再次匹配成功)--> Tracked (重新激活)
- *                Lost --(超时)--> Removed
+ *                Lost --(超过 max_age 帧)--> Removed
  *
  *               每个轨迹有 4 种状态 (ByteTrackState):
  *               - New:      刚创建, 等待确认;
@@ -77,7 +78,7 @@ namespace bytetrack
 class ByteTracker : public BaseTracker
 {
    public:
-    // tracked_stracks: 已确认跟踪中的轨迹 (Tracked 和 New 状态);
+    // tracked_stracks: 包含 Tracked 状态 (已确认) 和 New 状态 (未确认) 的轨迹;
     // 注意! 这里用的是值对象 (不是指针), 生命周期由 vector 自身管理;
     std::vector<BytetrackTrack> tracked_stracks;
 
@@ -89,14 +90,14 @@ class ByteTracker : public BaseTracker
     // 仅用于记录, 不再参与任何匹配;
     std::vector<BytetrackTrack> removed_stracks;
 
-    // output_stracks: 上一次 update() 的输出结果 (活跃轨迹);
+    // output_stracks: 上一次 update() 的输出结果 (已确认活跃轨迹);
     // 外部通过 get_active_tracks() 或直接读取此变量获取跟踪结果;
     std::vector<BytetrackTrack> output_stracks;
 
    public:
     /***
      * @description: 构造函数;
-     *               @note ByteTrack 的初始化完全由基类完成;
+     *               ByteTrack 的初始化完全由基类完成;
      *               轨迹列表初始为空, 第一次 update 时开始填充;
      * @param config const TrackerConfig& : 跟踪器配置;
      */
@@ -117,20 +118,18 @@ class ByteTracker : public BaseTracker
      *
      *               参考 bytetracker BYTETracker::update();
      *
-     *               6 个步骤:
-     *               1. 检测框分流 + 轨迹寿命检查;
-     *               2. 第一次关联: 轨迹池 x 高置信度检测;
-     *               3. 第二次关联: 未匹配轨迹 x 低置信度检测;
-     *               4. 第三次关联: 未确认轨迹 x 剩余高置信度检测;
-     *               5. 初始化新轨迹;
-     *               6. 更新状态 (合并/去重/输出);
+     *               关键修正 (对比原始实现):
+     *               - tracked_stracks 在构建轨迹池之前先分离为 active_tracked 和 unconfirmed;
+     *               - 轨迹池仅含 active_tracked (Tracked) + lost_stracks, New 状态不参与预测;
+     *               - 三次关联分别使用不同阈值: match_thresh / match_thresh_low / match_thresh_unconfirmed;
+     *               - lost_stracks 的生命周期检查在所有关联完成之后进行;
      *
      * @param detections const std::vector<BoxObject>& : 当前帧检测结果;
      * @param frame_id   int32 : 当前帧 ID (默认 -1 表示自增);
      */
     void update(const std::vector<BoxObject>& detections, int32 frame_id = -1) override
     {
-        // ---- 第 0 步: 帧 ID 管理 ----
+        // ---- 帧 ID 管理 ----
         if (frame_id > 0)
         {
             this->_frame_id = frame_id;
@@ -140,87 +139,75 @@ class ByteTracker : public BaseTracker
             this->_frame_id++;
         }
 
-        // !Step 1: 获取检测结果并分流
-        // 按置信度分流: 高分检测 (>= track_thresh) / 低分检测;
+        // ================================================================
+        // 关联准备: 检测框分流 + 轨迹预分类
+        // ================================================================
+
+        // 按置信度分流检测框: 高分检测 (>= track_thresh) / 低分检测;
         // 同时保存 BoxObject (用于 update/re_activate) 和 BytetrackTrack (用于 IoU);
         std::vector<BytetrackTrack> detections_high_track;
         std::vector<BytetrackTrack> detections_low_track;
-        std::vector<BoxObject> detections_high_box;  // 平行于 detections_high_track;
-        std::vector<BoxObject> detections_low_box;   // 平行于 detections_low_track;
+        std::vector<BoxObject> detections_high_box;
+        std::vector<BoxObject> detections_low_box;
 
         for (size_t i = 0; i < detections.size(); i++)
         {
             const BoxObject& det = detections[i];
-
-            // 创建 BytetrackTrack (用于 IoU 计算);
-            // track_id = -1 表示"尚未分配 ID" (新检测);
+            // track_id = -1 表示尚未分配 ID (新检测临时占位);
             BytetrackTrack strack(det, this->_frame_id, -1, this->_config.expand_box_rate);
 
             if (det.score >= this->_config.track_thresh)
             {
-                // 高分检测: 优先级高, 参与第一次和第三次关联;
+                // 高分检测: 参与关联一 (vs 轨迹池) 和关联三 (vs 未确认轨迹);
                 detections_high_track.push_back(strack);
                 detections_high_box.push_back(det);
             }
             else if (det.score >= this->_config.track_thresh * 0.5f)
             {
-                // 低分检测: 阈值在 track_thresh * 0.5 ~ track_thresh 之间;
-                // 只有这个区间的检测框才会被保留; 低于 track_thresh * 0.5 的直接丢弃;
+                // 低分检测: 只保留 [track_thresh*0.5, track_thresh) 区间;
+                // 低于 track_thresh*0.5 的直接丢弃, 太不可靠;
                 detections_low_track.push_back(strack);
                 detections_low_box.push_back(det);
             }
         }
 
-        // ---- 对已有轨迹做寿命检查 ----
-        // 如果轨迹超过 max_age 帧没有更新, 标记为 Removed;
-        // 注意! tracked_stracks 和 lost_stracks 都需要做寿命检查;
+        // 关键修正: 在构建轨迹池之前, 先将 tracked_stracks 按激活状态分离;
+        // - active_tracked: Tracked 状态 (is_activated == true), 进入轨迹池;
+        // - unconfirmed: New 状态 (is_activated == false), 不进入轨迹池 (卡尔曼未初始化);
+        // 原因: New 状态的轨迹卡尔曼还未正式激活, 如果参与 multi_predict 会产生错误结果;
+        std::vector<BytetrackTrack*> unconfirmed;
+        std::vector<BytetrackTrack*> active_tracked;
+        for (size_t i = 0; i < this->tracked_stracks.size(); i++)
         {
-            // 检查 tracked_stracks;
-            std::vector<BytetrackTrack> updated_tracked;
-            for (size_t i = 0; i < this->tracked_stracks.size(); i++)
+            if (this->tracked_stracks[i].is_activated())
             {
-                if (this->_frame_id - this->tracked_stracks[i].frame_id > this->_config.max_age)
-                {
-                    this->tracked_stracks[i].mark_removed();
-                    this->removed_stracks.push_back(this->tracked_stracks[i]);
-                }
-                else
-                {
-                    updated_tracked.push_back(this->tracked_stracks[i]);
-                }
+                // 已激活轨迹: 进入轨迹池, 参与第一次和第二次关联;
+                active_tracked.push_back(&this->tracked_stracks[i]);
             }
-            this->tracked_stracks = updated_tracked;
+            else
+            {
+                // 未确认轨迹 (New 状态): 稍后单独参与第三次关联;
+                unconfirmed.push_back(&this->tracked_stracks[i]);
+            }
         }
 
-        {
-            // 检查 lost_stracks;
-            std::vector<BytetrackTrack> updated_lost;
-            for (size_t i = 0; i < this->lost_stracks.size(); i++)
-            {
-                if (this->_frame_id - this->lost_stracks[i].frame_id > this->_config.max_age)
-                {
-                    this->lost_stracks[i].mark_removed();
-                    this->removed_stracks.push_back(this->lost_stracks[i]);
-                }
-                else
-                {
-                    updated_lost.push_back(this->lost_stracks[i]);
-                }
-            }
-            this->lost_stracks = updated_lost;
-        }
+        // ================================================================
+        // 关联一: 轨迹池 x 高分检测 (阈值 match_thresh)
+        // ================================================================
 
-        // !Step 2: 第一次关联, 基于 IoU
-        // 合并 tracked_stracks + lost_stracks 构成轨迹池;
-        // 对所有轨迹进行卡尔曼预测;
-        std::vector<BytetrackTrack*> strack_pool = joint_stracks(this->tracked_stracks, this->lost_stracks);
+        // 轨迹池 = Tracked 状态 + Lost 状态 (不含 New 状态);
+        // 使用 joint_stracks_ptr 合并指针列表 (active_tracked) 和对象列表 (lost_stracks);
+        std::vector<BytetrackTrack*> strack_pool = joint_stracks_ptr(active_tracked, this->lost_stracks);
+
+        // 卡尔曼预测: 将所有轨迹的位置向前推进一步;
+        // 注意! 只有 Tracked+Lost 状态的轨迹才进行预测, New 状态已被排除在外;
         BytetrackTrack::multi_predict(strack_pool, this->_kalman_filter);
 
-        // 计算轨迹池与高分检测间的 IoU 距离矩阵;
+        // 计算 IoU 距离矩阵并求解线性分配;
         std::vector<std::vector<float32>> dists_1 = cal_iou_distance(strack_pool, detections_high_track);
         ByteMatchResult match1 = linear_assignment(dists_1, this->_config.match_thresh);
 
-        // 处理第一次匹配结果;
+        // 处理关联一结果;
         std::vector<BytetrackTrack> activated_stracks;
         std::vector<BytetrackTrack> refind_stracks;
 
@@ -234,20 +221,24 @@ class ByteTracker : public BaseTracker
 
             if (track->state == ByteTrackState::Tracked)
             {
-                // 已确认轨迹: 用检测更新卡尔曼状态和边界框;
+                // Tracked 轨迹: 卡尔曼更新, 更新边界框;
                 track->update(det_box, this->_frame_id);
                 activated_stracks.push_back(*track);
             }
             else
             {
-                // 丢失轨迹: 重新激活 (从 Lost 状态恢复到 Tracked);
+                // Lost 轨迹匹配到高分检测: 重新激活;
                 track->re_activate(det_box, this->_frame_id, false);
                 refind_stracks.push_back(*track);
             }
         }
 
-        // !Step 3: 第二次关联, 使用低分检测
-        // 收集第一次匹配中未匹配的 Tracked 轨迹;
+        // ================================================================
+        // 关联二: 未匹配 Tracked 轨迹 x 低分检测 (阈值 match_thresh_low)
+        // ================================================================
+
+        // 收集关联一未匹配的 Tracked 状态轨迹 (Lost 状态的不参与关联二);
+        // 原因: 低分检测用于修复被遮挡的 Tracked 轨迹, 不用于重新激活 Lost 轨迹;
         std::vector<BytetrackTrack*> r_tracked_stracks;
         for (size_t i = 0; i < match1.unmatched_tracks.size(); i++)
         {
@@ -258,11 +249,12 @@ class ByteTracker : public BaseTracker
             }
         }
 
-        // 计算这些轨迹与低分检测间的 IoU 距离;
+        // 使用更宽松的阈值 match_thresh_low (默认 0.5, 比 match_thresh 低);
+        // 允许低分检测框的模糊匹配, 适应目标被遮挡时的低置信度情况;
         std::vector<std::vector<float32>> dists_2 = cal_iou_distance(r_tracked_stracks, detections_low_track);
-        ByteMatchResult match2 = linear_assignment(dists_2, this->_config.match_thresh);
+        ByteMatchResult match2 = linear_assignment(dists_2, this->_config.match_thresh_low);
 
-        // 处理第二次匹配结果;
+        // 处理关联二结果;
         std::vector<BytetrackTrack> lost_stracks_new;
         for (size_t i = 0; i < match2.matches.size(); i++)
         {
@@ -274,6 +266,7 @@ class ByteTracker : public BaseTracker
 
             if (track->state == ByteTrackState::Tracked)
             {
+                // 用低分检测更新被遮挡的 Tracked 轨迹;
                 track->update(det_box, this->_frame_id);
                 activated_stracks.push_back(*track);
             }
@@ -284,7 +277,7 @@ class ByteTracker : public BaseTracker
             }
         }
 
-        // 第二次匹配中未匹配的轨迹标记为 Lost;
+        // 关联二未匹配的 Tracked 轨迹标记为 Lost;
         for (size_t i = 0; i < match2.unmatched_tracks.size(); i++)
         {
             int32 idx = match2.unmatched_tracks[i];
@@ -296,8 +289,12 @@ class ByteTracker : public BaseTracker
             }
         }
 
-        // !Step 4: 处理未确认轨迹 (New 状态)
-        // 收集第一次匹配中未匹配的高分检测 (用于匹配未确认轨迹);
+        // ================================================================
+        // 关联三: 未确认轨迹 x 剩余高分检测 (阈值 match_thresh_unconfirmed)
+        // ================================================================
+
+        // 收集关联一中未匹配的高分检测 (轨迹池没有认领的检测框);
+        // 这些检测框将与未确认轨迹 (New 状态) 进行匹配;
         std::vector<BytetrackTrack> detections_cp_track;
         std::vector<BoxObject> detections_cp_box;
         for (size_t i = 0; i < match1.unmatched_detections.size(); i++)
@@ -307,21 +304,12 @@ class ByteTracker : public BaseTracker
             detections_cp_box.push_back(detections_high_box[idx]);
         }
 
-        // 收集未确认轨迹 (New 状态, is_activated = false);
-        std::vector<BytetrackTrack*> unconfirmed;
-        for (size_t i = 0; i < this->tracked_stracks.size(); i++)
-        {
-            if (!this->tracked_stracks[i].is_activated())
-            {
-                unconfirmed.push_back(&this->tracked_stracks[i]);
-            }
-        }
-
-        // 计算未确认轨迹与剩余高分检测间的 IoU 距离;
+        // 使用阈值 match_thresh_unconfirmed (默认 0.7, 对未确认轨迹稍严格);
+        // 未确认轨迹只出现了 1 帧, 需要更高可信度的匹配才能继续存活;
         std::vector<std::vector<float32>> dists_3 = cal_iou_distance(unconfirmed, detections_cp_track);
-        ByteMatchResult match3 = linear_assignment(dists_3, this->_config.match_thresh);
+        ByteMatchResult match3 = linear_assignment(dists_3, this->_config.match_thresh_unconfirmed);
 
-        // 处理第三次匹配结果;
+        // 关联三匹配成功: 未确认轨迹继续存活并更新;
         for (size_t i = 0; i < match3.matches.size(); i++)
         {
             int32 track_idx = match3.matches[i].first;
@@ -331,7 +319,7 @@ class ByteTracker : public BaseTracker
             activated_stracks.push_back(*unconfirmed[track_idx]);
         }
 
-        // 第三次匹配中未匹配的未确认轨迹直接删除;
+        // 关联三未匹配的未确认轨迹直接删除 (New 状态一帧未能确认就销毁);
         for (size_t i = 0; i < match3.unmatched_tracks.size(); i++)
         {
             int32 idx = match3.unmatched_tracks[i];
@@ -339,24 +327,31 @@ class ByteTracker : public BaseTracker
             this->removed_stracks.push_back(*unconfirmed[idx]);
         }
 
-        // !Step 5: 初始化新轨迹
-        // 第三次匹配中未匹配的高分检测 -> 初始化新轨迹;
+        // ================================================================
+        // 初始化新轨迹
+        // ================================================================
+
+        // 关联三未匹配的高分检测 -> 初始化 New 状态轨迹;
+        // 只有高分检测 (>= high_thresh) 才允许创建新轨迹, 防止大量假阳性;
         std::vector<int32> unmatched_dets_3 = match3.unmatched_detections;
         for (size_t i = 0; i < unmatched_dets_3.size(); i++)
         {
             int32 idx = unmatched_dets_3[i];
             BytetrackTrack& det = detections_cp_track[idx];
-            // 只有高分检测才能创建新轨迹;
-            // 低分检测太不可靠, 创建新轨迹会导致大量假阳性;
             if (det.score >= this->_config.high_thresh)
             {
+                // activate() 分配 track_id, 初始化卡尔曼滤波器, 状态设为 New;
                 det.activate(this->_kalman_filter, this->_frame_id);
                 activated_stracks.push_back(det);
             }
         }
 
-        // !Step 6: 更新状态
-        // 更新 tracked_stracks: 只保留 Tracked 状态;
+        // ================================================================
+        // 状态更新
+        // ================================================================
+
+        // 将 tracked_stracks 中非 Tracked 状态的轨迹移除 (只保留 Tracked 状态);
+        // 此时 New 状态轨迹通过 activated_stracks 重新加回来;
         {
             std::vector<BytetrackTrack> tracked_swap;
             for (size_t i = 0; i < this->tracked_stracks.size(); i++)
@@ -369,14 +364,15 @@ class ByteTracker : public BaseTracker
             this->tracked_stracks = tracked_swap;
         }
 
-        // 合并激活和重新找到的轨迹;
+        // 合并本帧激活的轨迹 (包含新创建的 New 状态和更新的 Tracked 状态);
         this->tracked_stracks = joint_stracks_val(this->tracked_stracks, activated_stracks);
+        // 合并重新找到的轨迹 (从 Lost 恢复为 Tracked);
         this->tracked_stracks = joint_stracks_val(this->tracked_stracks, refind_stracks);
 
-        // 从 lost 中移除已找回的轨迹 (防止同一个轨迹同时出现在 tracked 和 lost 中);
+        // 从 lost 中移除已找回的轨迹 (防止同一轨迹同时出现在 tracked 和 lost 中);
         this->lost_stracks = sub_stracks(this->lost_stracks, this->tracked_stracks);
 
-        // 添加新丢失的轨迹;
+        // 将本帧新丢失的轨迹加入 lost_stracks;
         for (size_t i = 0; i < lost_stracks_new.size(); i++)
         {
             this->lost_stracks.push_back(lost_stracks_new[i]);
@@ -385,7 +381,7 @@ class ByteTracker : public BaseTracker
         // 从 lost 中移除已标记为 removed 的轨迹;
         this->lost_stracks = sub_stracks(this->lost_stracks, this->removed_stracks);
 
-        // 移除 tracked 和 lost 之间的重复轨迹;
+        // 移除 tracked 和 lost 之间 IoU 重叠的重复轨迹 (保留生存时间更长的);
         {
             std::vector<BytetrackTrack> resa, resb;
             remove_duplicate_stracks(resa, resb, this->tracked_stracks, this->lost_stracks);
@@ -393,7 +389,33 @@ class ByteTracker : public BaseTracker
             this->lost_stracks = resb;
         }
 
-        // 输出活跃的轨迹 (is_activated == true);
+        // ================================================================
+        // 生命周期检查: 仅对 lost_stracks (关联完成后再检查, 避免过早移除)
+        // ================================================================
+
+        // 超过 max_age 帧未匹配的 Lost 轨迹标记为 Removed;
+        // 修正: 生命周期检查移至所有关联完成之后, 只检查 lost_stracks;
+        // 原因: 若在关联前提前移除, 可能错过本帧能重新匹配的轨迹;
+        {
+            std::vector<BytetrackTrack> survived_lost;
+            for (size_t i = 0; i < this->lost_stracks.size(); i++)
+            {
+                if (this->_frame_id - this->lost_stracks[i].frame_id > this->_config.max_age)
+                {
+                    // 超时: 标记为 Removed 并移入 removed_stracks;
+                    this->lost_stracks[i].mark_removed();
+                    this->removed_stracks.push_back(this->lost_stracks[i]);
+                }
+                else
+                {
+                    // 未超时: 保留在 lost_stracks 中等待下帧匹配;
+                    survived_lost.push_back(this->lost_stracks[i]);
+                }
+            }
+            this->lost_stracks = survived_lost;
+        }
+
+        // 输出已确认的活跃轨迹 (is_activated == true 表示 Tracked 状态且已通过 n_init 帧确认);
         this->output_stracks.clear();
         for (size_t i = 0; i < this->tracked_stracks.size(); i++)
         {
@@ -406,7 +428,7 @@ class ByteTracker : public BaseTracker
 
     /***
      * @description: 获取当前活跃的轨迹指针列表;
-     *               @note 返回的是指向 this->tracked_stracks 内部元素的指针,
+     *               返回的是指向 this->tracked_stracks 内部元素的指针;
      *               如果后续调用了 push_back 导致 vector 扩容, 指针可能失效;
      *               建议在每次 update() 后立即读取;
      * @return std::vector<BytetrackTrack*> : 活跃轨迹指针列表;

@@ -230,6 +230,48 @@ inline ByteMatchResult linear_assignment(const std::vector<std::vector<float32>>
 }
 
 /***
+ * @description: 合并指针列表与对象列表为统一的指针列表 (joint_stracks_ptr);
+ *               用于将已分离的 active_tracked (指针) 与 lost_stracks (值) 合并为轨迹池;
+ *               指针列表中的轨迹优先入队, 对象列表中未重复的轨迹追加到末尾;
+ *               按 track_id 去重;
+ *
+ *               为什么需要这个函数?
+ *               在修正后的 ByteTrack 流程中, 构建轨迹池之前已将 tracked_stracks
+ *               按激活状态分为 active_tracked (指针) 和 unconfirmed (指针);
+ *               因此合并 active_tracked (指针) + lost_stracks (值) 时,
+ *               不能直接用 joint_stracks (需要两个值列表);
+ *               joint_stracks_ptr 专门处理"指针列表 + 值列表"的合并场景;
+ *
+ * @param ptr_list std::vector<BytetrackTrack*>& : 指针列表 (如 active_tracked);
+ * @param val_list std::vector<BytetrackTrack>&  : 对象列表 (如 lost_stracks);
+ * @return std::vector<BytetrackTrack*> : 合并后的指针列表 (去重);
+ */
+inline std::vector<BytetrackTrack*> joint_stracks_ptr(std::vector<BytetrackTrack*>& ptr_list,  //
+                                                      std::vector<BytetrackTrack>& val_list)   //
+{
+    std::map<int32, int32> exists;
+    std::vector<BytetrackTrack*> res;
+
+    // 先将指针列表中的轨迹加入结果, 并记录已存在的 track_id;
+    for (size_t i = 0; i < ptr_list.size(); i++)
+    {
+        exists[ptr_list[i]->track_id] = 1;
+        res.push_back(ptr_list[i]);
+    }
+    // 再将对象列表中未重复的轨迹加入结果;
+    for (size_t i = 0; i < val_list.size(); i++)
+    {
+        int32 tid = val_list[i].track_id;
+        if (exists.find(tid) == exists.end())
+        {
+            exists[tid] = 1;
+            res.push_back(&val_list[i]);
+        }
+    }
+    return res;
+}
+
+/***
  * @description: 合并两个 BytetrackTrack 对象向量为指针向量 (joint_stracks);
  *               返回合并后的指针向量, 自动根据 track_id 去重;
  *
