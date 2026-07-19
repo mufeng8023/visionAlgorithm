@@ -46,10 +46,12 @@
 #ifndef __BYTETRACKER__H__
 #define __BYTETRACKER__H__
 
+#include <map>
 #include <vector>
 
 #include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
+#include "tracker/TrackResult.hpp"
 #include "tracker/bytetrack/BytetrackTrack.hpp"
 #include "tracker/bytetrack/matching.hpp"
 
@@ -126,8 +128,12 @@ class ByteTracker : public BaseTracker
      * @param detections const std::vector<BoxObject>& : 当前帧检测结果;
      * @param frame_id   int32 : 当前帧 ID (默认 -1 表示自增);
      */
-    void update(const std::vector<BoxObject>& detections, int32 frame_id = -1) override
+    void update(const std::vector<BoxObject>& detections,  //
+                std::vector<TrackResult>& results,         //
+                int32 frame_id = -1) override
     {
+        results.clear();
+
         // ---- 帧 ID 管理 ----
         if (frame_id > 0)
         {
@@ -142,12 +148,15 @@ class ByteTracker : public BaseTracker
         // 关联准备: 检测框分流 + 轨迹预分类
         // ================================================================
 
-        // 按置信度分流检测框: 高分检测 (>= track_thresh) / 低分检测;
-        // 同时保存 BoxObject (用于 update/re_activate) 和 BytetrackTrack (用于 IoU);
+        // 按置信度分流检测框, 同时记录原始 detections[] 中的下标;
+        // idx_high[j] = detections_high_box[j] 在原始 detections 中的位置;
+        // idx_low[j]  = detections_low_box[j]  在原始 detections 中的位置;
         std::vector<BytetrackTrack> detections_high_track;
         std::vector<BytetrackTrack> detections_low_track;
         std::vector<BoxObject> detections_high_box;
         std::vector<BoxObject> detections_low_box;
+        std::vector<int32> idx_high;  // 高分检测的原始下标
+        std::vector<int32> idx_low;   // 低分检测的原始下标
 
         for (size_t i = 0; i < detections.size(); i++)
         {
@@ -160,6 +169,7 @@ class ByteTracker : public BaseTracker
                 // 高分检测: 参与关联一 (vs 轨迹池) 和关联三 (vs 未确认轨迹);
                 detections_high_track.push_back(strack);
                 detections_high_box.push_back(det);
+                idx_high.push_back(static_cast<int32>(i));
             }
             else if (det.score >= this->_config.track_thresh * 0.5f)
             {
@@ -167,8 +177,13 @@ class ByteTracker : public BaseTracker
                 // 低于 track_thresh*0.5 的直接丢弃, 太不可靠;
                 detections_low_track.push_back(strack);
                 detections_low_box.push_back(det);
+                idx_low.push_back(static_cast<int32>(i));
             }
         }
+
+        // track_det_map: track_id → 匹配到的 detections[] 原始下标;
+        // 在三轮关联过程中逐步填充, 最终用于构建 results;
+        std::map<int32, int32> track_det_map;
 
         // 关键修正: 在构建轨迹池之前, 先将 tracked_stracks 按激活状态分离;
         // - active_tracked: Tracked 状态 (is_activated == true), 进入轨迹池;
@@ -230,6 +245,8 @@ class ByteTracker : public BaseTracker
                 track->re_activate(det_box, this->_frame_id, false);
                 refind_stracks.push_back(*track);
             }
+            // 记录 track_id → 原始 detections[] 下标的映射 (供 results 构建使用);
+            track_det_map[track->track_id] = idx_high[det_idx];
         }
 
         // ================================================================
@@ -274,6 +291,8 @@ class ByteTracker : public BaseTracker
                 track->re_activate(det_box, this->_frame_id, false);
                 refind_stracks.push_back(*track);
             }
+            // 记录 track_id → 原始 detections[] 下标的映射 (供 results 构建使用);
+            track_det_map[track->track_id] = idx_low[det_idx];
         }
 
         // 关联二未匹配的 Tracked 轨迹标记为 Lost;
@@ -296,11 +315,13 @@ class ByteTracker : public BaseTracker
         // 这些检测框将与未确认轨迹 (New 状态) 进行匹配;
         std::vector<BytetrackTrack> detections_cp_track;
         std::vector<BoxObject> detections_cp_box;
+        std::vector<int32> idx_cp;  // 关联三检测在原始 detections[] 中的下标映射;
         for (size_t i = 0; i < match1.unmatched_detections.size(); i++)
         {
             int32 idx = match1.unmatched_detections[i];
             detections_cp_track.push_back(detections_high_track[idx]);
             detections_cp_box.push_back(detections_high_box[idx]);
+            idx_cp.push_back(idx_high[idx]);
         }
 
         // 使用阈值 match_thresh_unconfirmed (默认 0.7, 对未确认轨迹稍严格);
@@ -316,6 +337,8 @@ class ByteTracker : public BaseTracker
 
             unconfirmed[track_idx]->update(detections_cp_box[det_idx], this->_frame_id);
             activated_stracks.push_back(*unconfirmed[track_idx]);
+            // 记录 track_id → 原始 detections[] 下标的映射 (供 results 构建使用);
+            track_det_map[unconfirmed[track_idx]->track_id] = idx_cp[det_idx];
         }
 
         // 关联三未匹配的未确认轨迹直接删除 (New 状态一帧未能确认就销毁);
@@ -342,6 +365,8 @@ class ByteTracker : public BaseTracker
                 // activate() 分配 track_id, 初始化卡尔曼滤波器, 状态设为 New;
                 det.activate(this->_kalman_filter, this->_frame_id);
                 activated_stracks.push_back(det);
+                // activate() 执行后 det.track_id 才有效; 记录新轨迹的检测索引映射;
+                track_det_map[det.track_id] = idx_cp[idx];
             }
         }
 
@@ -422,6 +447,33 @@ class ByteTracker : public BaseTracker
             {
                 this->output_stracks.push_back(this->tracked_stracks[i]);
             }
+        }
+
+        // ================================================================
+        // 构建 TrackResult 输出
+        // ================================================================
+
+        // 遍历已确认的活跃轨迹, 结合 track_det_map 填充 det_index;
+        results.reserve(this->output_stracks.size());
+        for (size_t i = 0; i < this->output_stracks.size(); i++)
+        {
+            const BytetrackTrack& track = this->output_stracks[i];
+
+            TrackResult result;
+            result.track_id = track.track_id;
+            result.cls_id = track.cls_id;
+            result.score = track.score;
+            result.ltwh[0] = track.ltwh[0];
+            result.ltwh[1] = track.ltwh[1];
+            result.ltwh[2] = track.ltwh[2];
+            result.ltwh[3] = track.ltwh[3];
+
+            // 从 track_det_map 查找本帧匹配到的原始 detections[] 下标;
+            // ByteTrack 的 output_stracks 均应有对应匹配, 若未找到则 det_index = -1;
+            std::map<int32, int32>::const_iterator map_it = track_det_map.find(track.track_id);
+            result.det_index = (map_it != track_det_map.end()) ? map_it->second : -1;
+
+            results.push_back(result);
         }
     }
 

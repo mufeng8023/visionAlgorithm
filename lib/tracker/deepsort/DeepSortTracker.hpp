@@ -38,11 +38,13 @@
 #ifndef __DEEPSORTTRACKER__H__
 #define __DEEPSORTTRACKER__H__
 
+#include <map>
 #include <memory>  // std::shared_ptr
 #include <vector>
 
 #include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
+#include "tracker/TrackResult.hpp"
 #include "tracker/deepsort/DeepSortTrack.hpp"
 #include "tracker/deepsort/NNMetric.hpp"
 #include "tracker/deepsort/matching.hpp"
@@ -104,11 +106,16 @@ class DeepSORTTracker : public BaseTracker
      *               3. _remove_deleted_tracks(): 清理无效轨迹;
      *
      * @param detections const std::vector<BoxObject>& : 当前帧检测结果;
+     * @param results    std::vector<TrackResult>&     : 输出 - 本帧已确认轨迹的跟踪结果;
      * @param frame_id   int32 : 当前帧 ID (默认 -1 表示自增);
      */
-    void update(const std::vector<BoxObject>& detections, int32 frame_id = -1) override
+    void update(const std::vector<BoxObject>& detections,  //
+                std::vector<TrackResult>& results,         //
+                int32 frame_id = -1) override
     {
-        // ---- 第 0 步: 帧 ID 管理 ----
+        results.clear();
+
+        // ---- 帧 ID 管理 ----
         if (frame_id > 0)
         {
             this->_frame_id = frame_id;
@@ -118,11 +125,13 @@ class DeepSORTTracker : public BaseTracker
             this->_frame_id++;
         }
 
-        // ---- 第 1 步: 预测所有轨迹 ----
+        // ---- 预测所有轨迹 ----
         this->_predict_all();
 
-        // ---- 第 2 步: 数据关联 ----
-        this->_match(detections);
+        // ---- 数据关联 (同时填充 track_det_map) ----
+        // track_det_map: track_id → 本帧匹配到的 detections[] 原始下标;
+        std::map<int32, int32> track_det_map;
+        this->_match(detections, track_det_map);
 
         // ---- 第 3 步: 更新 NNMetric 特征库 (在清理轨迹之前执行) ----
         // 在轨迹被删除之前, 先收集本帧匹配成功的特征和所有活跃轨迹 ID;
@@ -155,8 +164,36 @@ class DeepSORTTracker : public BaseTracker
             this->_nn_metric.partial_fit(tid_feats, active_targets);
         }
 
-        // ---- 第 4 步: 清理已删除轨迹 ----
+        // ---- 清理已删除轨迹 ----
         this->_remove_deleted_tracks();
+
+        // ================================================================
+        // 构建 TrackResult 输出
+        // ================================================================
+
+        // 遍历已确认 (Confirmed) 轨迹, 结合 track_det_map 填充 det_index;
+        std::vector<DeepSortTrack*> active_tracks = this->get_active_tracks();
+        results.reserve(active_tracks.size());
+        for (size_t i = 0; i < active_tracks.size(); i++)
+        {
+            const DeepSortTrack* track = active_tracks[i];
+
+            TrackResult result;
+            result.track_id = track->track_id;
+            result.cls_id = track->cls_id;
+            result.score = track->score;
+            result.ltwh[0] = track->ltwh[0];
+            result.ltwh[1] = track->ltwh[1];
+            result.ltwh[2] = track->ltwh[2];
+            result.ltwh[3] = track->ltwh[3];
+
+            // time_since_update == 0: 本帧匹配成功, 从 track_det_map 查 det_index;
+            // time_since_update > 0 : 纯卡尔曼预测帧, det_index = -1;
+            std::map<int32, int32>::const_iterator map_it = track_det_map.find(track->track_id);
+            result.det_index = (map_it != track_det_map.end()) ? map_it->second : -1;
+
+            results.push_back(result);
+        }
     }
 
     /***
@@ -219,7 +256,7 @@ class DeepSORTTracker : public BaseTracker
      *
      * @param detections const std::vector<BoxObject>& : 当前帧检测结果;
      */
-    void _match(const std::vector<BoxObject>& detections)
+    void _match(const std::vector<BoxObject>& detections, std::map<int32, int32>& track_det_map)
     {
         // ---- 分流: 确认态 + 未确认态 ----
         // 确认态轨迹: 参与级联匹配;
@@ -314,6 +351,8 @@ class DeepSORTTracker : public BaseTracker
             int32 track_idx = match_cascade.matches[i].first;
             int32 det_idx = match_cascade.matches[i].second;
             this->tracks[track_idx]->update(&this->_kalman_filter, detections[det_idx]);
+            // 记录 track_id → 原始 detections[] 下标的映射;
+            track_det_map[this->tracks[track_idx]->track_id] = det_idx;
         }
 
         // ---- 处理 IoU 匹配的匹配对 ----
@@ -323,6 +362,8 @@ class DeepSORTTracker : public BaseTracker
             int32 track_idx = match_iou.matches[i].first;
             int32 det_idx = match_iou.matches[i].second;
             this->tracks[track_idx]->update(&this->_kalman_filter, detections[det_idx]);
+            // 记录 track_id → 原始 detections[] 下标的映射;
+            track_det_map[this->tracks[track_idx]->track_id] = det_idx;
         }
 
         // ---- 处理未匹配的轨迹 (标记丢失) ----

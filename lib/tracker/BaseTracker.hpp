@@ -18,6 +18,7 @@
 
 #include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/BoxObject.hpp"
+#include "tracker/TrackResult.hpp"
 #include "tracker/TrackerConfig.hpp"
 
 namespace tracker
@@ -91,16 +92,23 @@ class BaseTracker
      * @description: 更新跟踪器 (纯虚函数);
      *               子类必须实现具体的跟踪逻辑;
      *               每帧调用一次, 输入当前帧的检测结果, 更新内部轨迹状态;
+     *               跟踪结果通过 results 输出, 每条记录包含 track_id 和对应的 det_index;
      *
      *               @note 各跟踪器的 update 内部流程不同:
-     *               - DeepSORT: 级联匹配 + IoU 二次匹配;
-     *               - ByteTrack: 高/低分检测两次 IoU 关联;
+     *               - ByteTrack: 三轮 IoU 关联, 在匹配阶段直接建立 track_id ↔ det_index 映射;
+     *               - DeepSORT: 级联匹配 + IoU 二次匹配, 同样直接建立映射;
      *
-     * @param detections const std::vector<BoxObject>& : 当前帧检测结果;
-     * @param frame_id   int32 : 当前帧 ID (可选, 默认 -1 表示自增);
-     * @return void;  (具体跟踪结果通过子类特有的 get_active_tracks() 获取);
+     *               det_index 含义:
+     *               - >= 0 : 本帧匹配到了 detections[det_index] 这个检测框;
+     *               - -1   : 本帧无匹配 (DeepSORT 已确认轨迹的纯卡尔曼预测帧);
+     *
+     * @param detections const std::vector<BoxObject>& : 当前帧检测结果 (调用方负责按分数排序);
+     * @param results    std::vector<TrackResult>&     : 输出参数, 本帧活跃轨迹结果;
+     * @param frame_id   int32 : 当前帧 ID (默认 -1 表示自增);
      */
-    virtual void update(const std::vector<BoxObject>& detections, int32 frame_id = -1) = 0;
+    virtual void update(const std::vector<BoxObject>& detections,  //
+                        std::vector<TrackResult>& results,         //
+                        int32 frame_id = -1) = 0;
 
     /***
      * @description: 重置跟踪器状态;
