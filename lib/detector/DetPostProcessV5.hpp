@@ -149,11 +149,12 @@ class DetPostProcessV5 : public BasePostProcess
 
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
-        for (uint32 batch_idx = 0; batch_idx < this->batch_size; ++batch_idx)
+        bool max_det_reached = false;
+        for (uint32 batch_idx = 0; batch_idx < this->batch_size && !max_det_reached; ++batch_idx)
         {
             // 遍历每个特征图的位置 (na * no, h, w)
             // 遍历anchor索引
-            for (uint32 anchor_idx = 0; anchor_idx < this->na; ++anchor_idx)
+            for (uint32 anchor_idx = 0; anchor_idx < this->na && !max_det_reached; ++anchor_idx)
             {
                 // 根据 batch 获取 result
                 ObjectBuffer& result = results[batch_idx];
@@ -187,12 +188,12 @@ class DetPostProcessV5 : public BasePostProcess
                 // 遍历每个位置 (特征图网格)
                 // 核心优化,将 grid_y 和 grid_x 调整至最内层
                 // 这样在进行 `[offset]` 访问时, 内存是完全连续线性扫描的, 极大地提升了 CPU Cache 命中率
-                for (uint32 grid_y = 0; grid_y < net_out_h; ++grid_y)
+                for (uint32 grid_y = 0; grid_y < net_out_h && !max_det_reached; ++grid_y)
                 {
                     // 提前计算 当前行首地址 相对于 grid 的首地址的偏移量
                     uint32 row_offset = grid_y * net_out_w;
 
-                    for (uint32 grid_x = 0; grid_x < net_out_w; ++grid_x)
+                    for (uint32 grid_x = 0; grid_x < net_out_w && !max_det_reached; ++grid_x)
                     {
                         // 计算当前 像素点 在 grid 的实际 偏移量
                         uint32 grid_offset = row_offset + grid_x;
@@ -201,9 +202,10 @@ class DetPostProcessV5 : public BasePostProcess
                         size_t output_idx = result.get_obj_count();
                         if (output_idx >= this->max_det)
                         {
-                            // 超过最大检测数, 直接退出
-                            LOG_DEFAULT_WARN("最大检测数量为: %d, 当前检测数量为: %d, 跳过后续检测",  //
+                            // 超过最大检测数, 直接退出所有循环
+                            LOG_DEFAULT_WARN("最大检测数量为: %d, 当前检测数量为: %d, 退出检测",  //
                                              this->max_det, output_idx);
+                            max_det_reached = true;
                             break;
                         }
 
