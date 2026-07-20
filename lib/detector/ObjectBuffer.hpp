@@ -277,8 +277,8 @@ class ObjectBuffer
      */
     void expand_obj()
     {
-        // 在末尾进行扩容;
-        assert(this->valid_mask.size() + 1 < this->max_obj_count && "Buffer overflow");
+        // 在末尾进行扩容; 修复 off-by-one: 应与 push_back 保持一致, 允许填满 max_obj_count 个槽;
+        assert(this->valid_mask.size() <= this->max_obj_count && "Buffer overflow");
 
         // 扩容 valid_mask
         this->valid_mask.push_back(ObjStatus::Invalid);
@@ -291,7 +291,7 @@ class ObjectBuffer
      */
     void push_back(const float32* data)
     {
-        assert(this->valid_mask.size() < this->max_obj_count && "Buffer overflow");
+        assert(this->valid_mask.size() <= this->max_obj_count && "Buffer overflow");
 
         if (data != nullptr)
         {
@@ -449,7 +449,7 @@ class ObjectBuffer
     std::string to_string() const
     {
         std::string info = format_string(
-            "max_obj_count: %d, obj_count: %d, stride: %d, buffer_size: %d, buffer_data*: %p, valid_mask_size: %d",
+            "max_obj_count: %d, obj_count: %zu, stride: %d, buffer_size: %zu, buffer_data*: %p, valid_mask_size: %zu",
             this->max_obj_count, this->get_obj_count(), this->stride, this->buffer.size(), this->buffer.data(),
             this->valid_mask.size());
 

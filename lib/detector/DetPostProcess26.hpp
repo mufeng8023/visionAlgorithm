@@ -24,16 +24,16 @@ class DetPostProcess26 : public BasePostProcess
     uint32 nc = 0;
 
     // 反量化系数
-    std::vector<float32> scale_outputs = {1.0, 1.0, 1.0};
+    std::vector<float32> scale_outputs = {1.0f, 1.0f, 1.0f};
 
     // 是否存在conf
     bool has_conf = false;
     // 每个类别的置信度阈值
-    std::vector<float32> conf_thrs = {0.1};
+    std::vector<float32> conf_thrs = {0.1f};
     // 最小的置信度阈值 conf_thrs 的最小值
-    float32 min_conf = 0.1;
+    float32 min_conf = 0.1f;
     // iou 阈值
-    float32 iou_thrs = 0.45;
+    float32 iou_thrs = 0.45f;
     // max_det 每个图片最多检测多少个目标
     uint32 max_det = 300;
     // 是否进行类别区分, false: 不同类别之间不会进行nms
@@ -99,8 +99,9 @@ class DetPostProcess26 : public BasePostProcess
         for (uint32 i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
-            this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] *
-                                       this->net_out_w[i]);
+            size_t len =
+                static_cast<size_t>(this->batch_size) * this->na * this->no * this->net_out_h[i] * this->net_out_w[i];
+            this->output_len.push_back(static_cast<uint32>(len));
         }
     }
 
@@ -269,6 +270,13 @@ class DetPostProcess26 : public BasePostProcess
 
                         // 获取当前已检测到的目标数量
                         size_t output_idx = result.get_obj_count();
+                        if (output_idx >= this->max_det)
+                        {
+                            // 超过最大检测数, 直接退出
+                            LOG_DEFAULT_WARN("最大检测数量为: %d, 当前检测数量为: %d, 跳过后续检测",  //
+                                             this->max_det, output_idx);
+                            continue;
+                        }
                         // 扩展result缓冲区, 并标记为有效
                         result.expand_obj();
                         result.set_valid(output_idx, true);
@@ -338,6 +346,16 @@ class DetPostProcess26 : public BasePostProcess
     {
         // 记录后处理时间
         TIMER_START_DEBUG(DET_POSTPROCESS_TIME_NAME);
+
+        // 安全检查: outputs 或 results 不能为空
+        if (outputs.empty() || results.empty())
+        {
+            LOG_DEFAULT_ERROR("%s: outputs(%zu) or results(%zu) is empty",
+                              this->to_string().c_str(),  //
+                              outputs.size(),             //
+                              results.size());
+            return;
+        }
 
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (uint32 i = 0; i < this->nl; ++i)

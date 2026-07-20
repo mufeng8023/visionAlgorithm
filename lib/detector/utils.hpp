@@ -271,8 +271,15 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     config.net_out_w.clear();
     for (uint32 i = 0; i < config.nl; ++i)
     {
-        config.net_out_h.push_back(config.input_height / config.strides[i]);
-        config.net_out_w.push_back(config.input_width / config.strides[i]);
+        uint32 stride = config.strides[i];
+        if (stride == 0)
+        {
+            LOG_DEFAULT_ERROR("strides[%d] is 0, cannot divide by zero", i);
+            throw std::runtime_error("strides[" + std::to_string(i) + "] is 0");
+        }
+
+        config.net_out_h.push_back(config.input_height / stride);
+        config.net_out_w.push_back(config.input_width / stride);
         LOG_DEFAULT_INFO("net_out_h[%d]:%d, net_out_w[%d]:%d", i, config.net_out_h[i], i, config.net_out_w[i]);
     }
 

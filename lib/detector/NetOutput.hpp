@@ -231,7 +231,7 @@ class NetOutput
      * @description: 获取缓冲区大小, 方便调试
      * @return
      */
-    uint32 get_buffer_size() const { return this->buffer.size(); }
+    size_t get_buffer_size() const { return this->buffer.size(); }
 
     /***
      * @description: 打印数据信息
@@ -241,8 +241,8 @@ class NetOutput
     {
         // 将各种信息打印为字符串
         std::string info = format_string(
-            "batch_size: %d, channel: %d, height: %d, width: %d, buffer_size: %d, "
-            "buffer_capacity: %d, buffer_data*: %p",
+            "batch_size: %d, channel: %d, height: %d, width: %d, buffer_size: %zu, "
+            "buffer_capacity: %zu, buffer_data*: %p",
             this->batch_size, this->channel, this->height, this->width, this->buffer.size(), this->buffer.capacity(),
             this->buffer.data());
 

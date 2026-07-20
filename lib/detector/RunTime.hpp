@@ -413,6 +413,7 @@ class RunTime
                             {
                                 // 访问越界
                                 LOG_DEFAULT_ERROR("kpt_start_idx + 2 > stride");
+                                continue;
                             }
 
                             // 添加关键点信息

@@ -60,16 +60,16 @@ typedef struct
     // 类别名字
     std::vector<std::string> names = {};
     // 类别个数
-    int32 nc = 0;
+    uint32 nc = 0;
     // 反量化系数
     std::vector<float32> scale_outputs = {1.0, 1.0, 1.0};
 
     // 每个类别的置信度阈值
-    std::vector<float32> conf_thrs = {0.1};
+    std::vector<float32> conf_thrs = {0.1f};
     // 最小的置信度阈值 conf_thrs 的最小值
-    float32 min_conf = 0.1;
+    float32 min_conf = 0.1f;
     // iou 阈值
-    float32 iou_thrs = 0.45;
+    float32 iou_thrs = 0.45f;
     // max_det 每个图片最多检测多少个目标
     uint32 max_det = 300;
     // 是否进行类别区分, false: 不同类别之间不会进行nms
@@ -83,7 +83,7 @@ typedef struct
     // 关键点维度
     uint32 kpt_dim = 0;
     // 关键点置信度阈值
-    float32 kpt_conf_thr = 0.5;
+    float32 kpt_conf_thr = 0.5f;
     // 其他模型参数 obb / seg
 
     // 输入图片大小
