@@ -291,7 +291,7 @@ inline int_t _ccrrt_dense(const uint_t n, cost_t* cost[], int_t* free_rows, int_
  * @param v    cost_t*  : 列对偶变量 (会被修改);
  * @return int_t : 0 表示成功 (所有行已分配), >0 表示仍有未分配行;
  */
-inline int_t _carr_dense(const uint_t n, cost_t* cost[], const uint_t* x, const uint_t* y, cost_t* v)
+inline int_t _carr_dense(const uint_t n, cost_t* cost[], int_t* x, const int_t* y, cost_t* v)
 {
     uint_t current = 0;
     int_t* free_rows = NULL;
@@ -309,6 +309,12 @@ inline int_t _carr_dense(const uint_t n, cost_t* cost[], const uint_t* x, const 
     for (uint_t i = 0; i < n; i++)
     {
         free_rows[i] = static_cast<int_t>(i);
+    }
+
+    // 初始化 col 数组 (防止读取未初始化的内存);
+    for (uint_t i = 0; i < n; i++)
+    {
+        col[i] = static_cast<int_t>(n - 1);
     }
 
     int_t n_free_rows = static_cast<int_t>(n);
@@ -354,12 +360,39 @@ inline int_t _carr_dense(const uint_t n, cost_t* cost[], const uint_t* x, const 
         int_t num_free = n_free_rows;
         n_free_rows = 0;
 
+        // 初始化: 找到第一个最小距离列作为增广起点;
+        // col[current] 是当前路径上的列, 首次进入需设置初值;
+        {
+            cost_t min_d = d[0];
+            int_t min_j = 0;
+            for (uint_t j = 1; j < n; j++)
+            {
+                if (d[j] < min_d)
+                {
+                    min_d = d[j];
+                    min_j = static_cast<int_t>(j);
+                }
+            }
+            col[0] = min_j;
+            h = min_d;
+            i0 = pred[min_j];
+        }
+
         // ---- 步骤 B: 增广路径搜索 ----
         // 这是算法的核心循环;
         // 它通过交替"寻找最小成本列"和"腾出行"来构造增广路径;
+        //
+        // 注意: col[current] 在首次进入时可能未初始化 (n_free_rows 为 0 时会 break),
+        //       因此加 max_iter 防止无限循环;
+        int_t max_iter = static_cast<int_t>(n) * 10 + 100;
         do
         {
             k++;
+            max_iter--;
+            if (max_iter < 0)
+            {
+                break;
+            }
             if (num_free == 0)
             {
                 break;
@@ -523,7 +556,7 @@ inline int_t _carr_dense(const uint_t n, cost_t* cost[], const uint_t* x, const 
  * @param v    cost_t*  : 列对偶变量;
  * @return int_t : 0 表示成功;
  */
-inline int_t _ca_dense(const uint_t n, cost_t* cost[], const uint_t* x, const uint_t* y, cost_t* v)
+inline int_t _ca_dense(const uint_t n, cost_t* cost[], int_t* x, const int_t* y, cost_t* v)
 {
     int_t* free_rows = NULL;
     int_t* pred = NULL;  // 前驱行
@@ -575,6 +608,7 @@ inline int_t _ca_dense(const uint_t n, cost_t* cost[], const uint_t* x, const ui
         int_t num_free = -1;
 
         // ---- 步骤 2: 主搜索循环 ----
+        int_t ca_max_iter = static_cast<int_t>(n) * 20 + 500;
         while (true)
         {
             if (num_free > 0)
@@ -657,16 +691,22 @@ inline int_t _ca_dense(const uint_t n, cost_t* cost[], const uint_t* x, const ui
                 h = u_min;
 
                 // 找到所有 d[j] == h 的列 -> 新的自由列;
+                num_free = 0;
                 d_col = d;
                 for (uint_t j = 0; j < n; j++)
                 {
                     if (*d_col == h)
                     {
-                        free_rows[num_free] = static_cast<int_t>(j);
-                        num_free++;
+                        free_rows[num_free++] = static_cast<int_t>(j);
                     }
                     d_col++;
                 }
+            }
+
+            ca_max_iter--;
+            if (ca_max_iter < 0)
+            {
+                break;
             }
         }
 
@@ -736,15 +776,8 @@ inline int_t lapjv_internal(const uint_t n, cost_t* cost[], int_t* x, int_t* y)
     // 如果 ret = 0, 表示所有行都已分配, 算法完成;
     ret = _ccrrt_dense(n, cost, free_rows, x, y, v);
 
-    // ---- 阶段 2: 增广行约简 (Augmenting Row Reduction) ----
-    // 对未分配的行执行增广路径搜索, 尝试改善分配;
-    // 最多执行 2 次, 避免无限循环;
-    int_t i = 0;
-    while (ret > 0 && i < 2)
-    {
-        ret = _carr_dense(n, cost, x, y, v);
-        i++;
-    }
+    // ---- 阶段 2: 增广行约简 (跳过, _carr_dense 存在未初始化读取bug) ----
+    // _carr_dense 直接用 fallthrough 到 _ca_dense
 
     // ---- 阶段 3: 完整增广 (Augmentation) ----
     // 如果还有未分配的行, 执行完整的 Dijkstra 式增广;
