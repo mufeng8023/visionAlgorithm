@@ -61,6 +61,7 @@
 #include <vector>
 
 #include "detector/YoloObject.h"
+#include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
 #include "tracker/TrackHistory.hpp"
 #include "tracker/TrackerConfig.hpp"
@@ -114,11 +115,9 @@ class TrackerRuntime
     // 私有成员变量
     // ================================================================
 
-    // _byte_tracker: ByteTrack 实例 (tracker_type == bytetrack 时创建);
-    std::unique_ptr<bytetrack::ByteTracker> _byte_tracker;
-
-    // _deepsort_tracker: DeepSORT 实例 (tracker_type == deepsort 时创建);
-    std::unique_ptr<deepsort::DeepSORTTracker> _deepsort_tracker;
+    // _tracker: 多态跟踪器指针, 运行时指向 ByteTracker 或 DeepSORTTracker 实例;
+    // 类型由 ini 配置文件中的 tracker_type 决定, 通过虚函数分发调用;
+    std::unique_ptr<BaseTracker> _tracker;
 
     // _is_initialized: 是否已完成初始化;
     bool _is_initialized = false;
@@ -165,16 +164,15 @@ class TrackerRuntime
         // 从 ini 文件解析配置 (tracker/utils.hpp 中定义);
         parser_ini_tracker_config(ini_path, this->_config);
 
-        // 根据 tracker_type 创建对应的跟踪器实例;
+        // 根据 tracker_type 创建对应的跟踪器实例, 赋给基类指针 (多态);
         if (this->_config.tracker_type == TrackerType::bytetrack)
         {
-            this->_byte_tracker = std::unique_ptr<bytetrack::ByteTracker>(new bytetrack::ByteTracker(this->_config));
+            this->_tracker = std::unique_ptr<BaseTracker>(new bytetrack::ByteTracker(this->_config));
             LOG_DEFAULT_INFO("TrackerRuntime: ByteTrack initialized;");
         }
         else if (this->_config.tracker_type == TrackerType::deepsort)
         {
-            this->_deepsort_tracker =
-                std::unique_ptr<deepsort::DeepSORTTracker>(new deepsort::DeepSORTTracker(this->_config));
+            this->_tracker = std::unique_ptr<BaseTracker>(new deepsort::DeepSORTTracker(this->_config));
             LOG_DEFAULT_INFO("TrackerRuntime: DeepSORT initialized;");
         }
         else
@@ -239,7 +237,9 @@ class TrackerRuntime
             sorted_indices[static_cast<size_t>(i)] = i;
         }
         std::sort(
-            sorted_indices.begin(), sorted_indices.end(), [&detections](int32 a, int32 b) -> bool
+            sorted_indices.begin(),  //
+            sorted_indices.end(),    //
+            [&detections](int32 a, int32 b) -> bool
             { return detections[static_cast<size_t>(a)].box.score > detections[static_cast<size_t>(b)].box.score; });
 
         // 按排序后顺序构建 BoxObject 列表;
@@ -255,16 +255,9 @@ class TrackerRuntime
             box_objects.push_back(box);
         }
 
-        // 调用跟踪器 update(); 结果中 det_index 指向排序后 box_objects 的下标;
+        // 通过基类虚函数指针分发调用, 无需判断 tracker_type;
         std::vector<TrackResult> results;
-        if (this->_config.tracker_type == TrackerType::bytetrack)
-        {
-            this->_byte_tracker->update(box_objects, results, this->_current_frame_id);
-        }
-        else if (this->_config.tracker_type == TrackerType::deepsort)
-        {
-            this->_deepsort_tracker->update(box_objects, results, this->_current_frame_id);
-        }
+        this->_tracker->update(box_objects, results, this->_current_frame_id);
 
         // 将 det_index 从排序后下标回映射到原始 detections[] 下标;
         // 回映射后 results[i].det_index 直接对应调用方的 detections[det_index];
@@ -302,8 +295,8 @@ class TrackerRuntime
     size_t active_track_count() const
     {
         size_t cnt = 0;
-        for (std::map<int32, TrackHistory>::const_iterator it = this->_histories.begin(); it != this->_histories.end();
-             ++it)
+        for (std::map<int32, TrackHistory>::const_iterator it = this->_histories.begin();  //
+             it != this->_histories.end(); ++it)
         {
             if (it->second.is_active)
             {
@@ -328,13 +321,10 @@ class TrackerRuntime
      */
     void reset()
     {
-        if (this->_byte_tracker)
+        // 通过基类虚函数指针分发调用, 无需判断 tracker_type;
+        if (this->_tracker)
         {
-            this->_byte_tracker->reset();
-        }
-        if (this->_deepsort_tracker)
-        {
-            this->_deepsort_tracker->reset();
+            this->_tracker->reset();
         }
         this->_histories.clear();
         this->_current_frame_id = 0;
@@ -380,7 +370,8 @@ class TrackerRuntime
                            int32 frame_id)
     {
         // 将所有已有历史的轨迹标记为失活 (后续再按本帧结果更新活跃状态);
-        for (std::map<int32, TrackHistory>::iterator it = this->_histories.begin(); it != this->_histories.end(); ++it)
+        for (std::map<int32, TrackHistory>::iterator it = this->_histories.begin();  //
+             it != this->_histories.end(); ++it)
         {
             it->second.is_active = false;
         }
@@ -398,18 +389,18 @@ class TrackerRuntime
             history.is_active = true;
 
             // 构建本帧的 TrackHistoryFrame (仅保存原始检测框, 不存储卡尔曼修正框);
-            TrackHistoryFrame hframe;
-            hframe.frame_id = frame_id;
-            hframe.det_index = result.det_index;
-            hframe.cls_id = result.cls_id;
-            hframe.score = result.score;
-            hframe.ltwh[0] = result.ltwh[0];
-            hframe.ltwh[1] = result.ltwh[1];
-            hframe.ltwh[2] = result.ltwh[2];
-            hframe.ltwh[3] = result.ltwh[3];
+            TrackHistoryFrame h_frame;
+            h_frame.frame_id = frame_id;
+            h_frame.det_index = result.det_index;
+            h_frame.cls_id = result.cls_id;
+            h_frame.score = result.score;
+            h_frame.ltwh[0] = result.ltwh[0];
+            h_frame.ltwh[1] = result.ltwh[1];
+            h_frame.ltwh[2] = result.ltwh[2];
+            h_frame.ltwh[3] = result.ltwh[3];
 
             // 追加到历史队列末尾 (最新帧在 back());
-            history.frames.push_back(hframe);
+            history.frames.push_back(h_frame);
 
             // 超出滚动窗口时, 删除最旧帧 (最旧帧在 front());
             while (static_cast<int32>(history.frames.size()) > this->_max_history_frames)
