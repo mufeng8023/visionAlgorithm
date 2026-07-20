@@ -246,7 +246,7 @@ class DeepSortTrack : public BaseTrack<DeepSortState>
         this->mean = pa.first;
         this->covariance = pa.second;
 
-        // ---- 第 4 步: 从更新后的 mean 写回 ltwh_expand ----
+        // ---- 第 5 步: 从更新后的 mean 写回 ltwh_expand ----
         // mean 经过卡尔曼修正后, 已经是"后验估计"的扩展空间状态;
         // 直接写入 ltwh_expand, 无需收缩;
         this->update_ltwh();
