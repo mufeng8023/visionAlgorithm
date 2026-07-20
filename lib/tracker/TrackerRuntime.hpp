@@ -219,8 +219,8 @@ class TrackerRuntime
             throw std::runtime_error("TrackerRuntime: not initialized, call init() first;");
         }
 
-        // 帧 ID 管理: 负数时自增;
-        if (frame_id > 0)
+        // 帧 ID 管理: 负数时自增, >= 0 时使用传入的帧号(含第0帧);
+        if (frame_id >= 0)
         {
             this->_current_frame_id = frame_id;
         }

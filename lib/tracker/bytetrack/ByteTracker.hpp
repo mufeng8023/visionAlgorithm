@@ -135,7 +135,8 @@ class ByteTracker : public BaseTracker
         results.clear();
 
         // ---- 帧 ID 管理 ----
-        if (frame_id > 0)
+        // 负数时自增, >= 0 时使用传入的帧号(含第0帧);
+        if (frame_id >= 0)
         {
             this->_frame_id = frame_id;
         }
