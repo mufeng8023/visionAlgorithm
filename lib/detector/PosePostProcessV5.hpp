@@ -24,16 +24,16 @@ class PosePostProcessV5 : public BasePostProcess
     uint32 nc = 0;
 
     // 反量化系数
-    std::vector<float32> scale_outputs = {1.0, 1.0, 1.0};
+    std::vector<float32> scale_outputs = {1.0f, 1.0f, 1.0f};
 
     // 是否存在conf
     bool has_conf = true;
     // 每个类别的置信度阈值
-    std::vector<float32> conf_thrs = {0.1};
+    std::vector<float32> conf_thrs = {0.1f};
     // 最小的置信度阈值 conf_thrs 的最小值
-    float32 min_conf = 0.1;
+    float32 min_conf = 0.1f;
     // iou 阈值
-    float32 iou_thrs = 0.45;
+    float32 iou_thrs = 0.45f;
     // max_det 每个图片最多检测多少个目标
     uint32 max_det = 300;
     // 是否进行类别区分, false: 不同类别之间不会进行nms
@@ -93,8 +93,11 @@ class PosePostProcessV5 : public BasePostProcess
         for (uint32 i = 0; i < this->nl; i++)
         {
             // 计算每个特征图的输出数据大小, na默认为1是为了方便计算, 兼容性更高
-            this->output_len.push_back(this->batch_size * this->na * this->no * this->net_out_h[i] *
-                                       this->net_out_w[i]);
+            size_t len = static_cast<size_t>(this->batch_size) *  //
+                         this->na * this->no *                    //
+                         this->net_out_h[i] * this->net_out_w[i];
+
+            this->output_len.push_back(static_cast<uint32>(len));
         }
     }
 
@@ -159,11 +162,12 @@ class PosePostProcessV5 : public BasePostProcess
 
         // 遍历整个特征图, 解析出每个位置的结果
         // 开始遍历特征图 (B, na * no, h, w)
-        for (uint32 batch_idx = 0; batch_idx < this->batch_size; ++batch_idx)
+        bool max_det_reached = false;
+        for (uint32 batch_idx = 0; batch_idx < this->batch_size && !max_det_reached; ++batch_idx)
         {
             // 遍历每个特征图的位置 (na * no, h, w)
             // 遍历anchor索引
-            for (uint32 anchor_idx = 0; anchor_idx < this->na; ++anchor_idx)
+            for (uint32 anchor_idx = 0; anchor_idx < this->na && !max_det_reached; ++anchor_idx)
             {
                 // 根据 batch 获取 result
                 ObjectBuffer& result = results[batch_idx];
@@ -178,8 +182,8 @@ class PosePostProcessV5 : public BasePostProcess
                 const float32* base_output_ptr = output.data() + base_ch_idx * grid_size;
 
                 // 当前组的 anchor
-                const uint32& anchor_w = anchors[anchor_idx * 2];
-                const uint32& anchor_h = anchors[anchor_idx * 2 + 1];
+                const float32& anchor_w = anchors[anchor_idx * 2];
+                const float32& anchor_h = anchors[anchor_idx * 2 + 1];
 
                 // 核心优化: 在进入循环之前, 先将 x / y / w / h / conf / nc 的各自通道的 [绝对首地址] 指针
                 // 彻底消除了原代码最内层中类似 [feature_addr + k * channel_stride] 的复杂乘法寻址
@@ -208,21 +212,24 @@ class PosePostProcessV5 : public BasePostProcess
                 // 遍历每个位置 (特征图网格)
                 // 核心优化,将 grid_y 和 grid_x 调整至最内层
                 // 这样在进行 `[offset]` 访问时, 内存是完全连续线性扫描的, 极大地提升了 CPU Cache 命中率
-                for (uint32 grid_y = 0; grid_y < net_out_h; ++grid_y)
+                for (uint32 grid_y = 0; grid_y < net_out_h && !max_det_reached; ++grid_y)
                 {
                     // 提前计算 当前行首地址 相对于 grid 的首地址的偏移量
                     uint32 row_offset = grid_y * net_out_w;
 
-                    for (uint32 grid_x = 0; grid_x < net_out_w; ++grid_x)
+                    for (uint32 grid_x = 0; grid_x < net_out_w && !max_det_reached; ++grid_x)
                     {
                         // 计算当前 像素点 在 grid 的实际 偏移量
                         uint32 grid_offset = row_offset + grid_x;
 
                         // 获取当前已检测到的目标数量
                         size_t output_idx = result.get_obj_count();
-                        if (output_idx > this->max_det)
+                        if (output_idx >= this->max_det)
                         {
-                            // 超过最大检测数, 直接退出
+                            // 超过最大检测数, 直接退出所有循环
+                            LOG_DEFAULT_WARN("最大检测数量为: %d, 当前检测数量为: %d, 退出检测",  //
+                                             this->max_det, output_idx);
+                            max_det_reached = true;
                             break;
                         }
 
@@ -344,6 +351,16 @@ class PosePostProcessV5 : public BasePostProcess
     {
         // 记录后处理时间
         TIMER_START_DEBUG(DET_POSTPROCESS_TIME_NAME);
+
+        // 安全检查: outputs 或 results 不能为空
+        if (outputs.empty() || results.empty())
+        {
+            LOG_DEFAULT_ERROR("%s: outputs(%zu) or results(%zu) is empty",
+                              this->to_string().c_str(),  //
+                              outputs.size(),             //
+                              results.size());
+            return;
+        }
 
         // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (uint32 i = 0; i < this->nl; ++i)
