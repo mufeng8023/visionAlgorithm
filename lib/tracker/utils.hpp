@@ -8,8 +8,8 @@
  * @
  * @Copyright (c) 2026 by gxs, All Rights Reserved.
  */
-#ifndef __UTILS__H__
-#define __UTILS__H__
+#ifndef __TRACKER_UTILS__H__
+#define __TRACKER_UTILS__H__
 
 #include "tracker/TrackerConfig.hpp"
 
@@ -130,4 +130,4 @@ void parser_ini_tracker_config(const std::string& ini_path, TrackerConfig& confi
 
 }  // namespace tracker
 
-#endif  // !__UTILS__H__
+#endif  // !__TRACKER_UTILS__H__
