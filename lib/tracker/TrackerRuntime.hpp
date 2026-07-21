@@ -2,7 +2,7 @@
  * @Author       : gxs
  * @Date         : 2026-07-19 17:00:00
  * @LastEditors  : gxs
- * @LastEditTime : 2026-07-19 18:00:00
+ * @LastEditTime : 2026-07-21 10:36:00
  * @FilePath     : /visionAlgorithm/lib/tracker/TrackerRuntime.hpp
  * @Description  : 跟踪器运行时 (高级接口);
  *
@@ -61,6 +61,7 @@
 #include <vector>
 
 #include "detector/YoloObject.h"
+#include "logging.hpp"
 #include "tracker/BaseTracker.hpp"
 #include "tracker/BoxObject.hpp"
 #include "tracker/TrackHistory.hpp"
@@ -68,6 +69,14 @@
 #include "tracker/bytetrack/ByteTracker.hpp"
 #include "tracker/deepsort/DeepSortTracker.hpp"
 #include "tracker/utils.hpp"
+
+#define TRACKER_INIT_TIME_NAME "tracker_init_time"
+#define TRACKER_UPDATE_ALL_TIME_NAME "tracker_update_all_time"
+#define TRACKER_SORT_TIME_NAME "tracker_sort_time"
+#define TRACKER_BOX_CONVERT_TIME_NAME "tracker_box_convert_time"
+#define TRACKER_TRACKER_UPDATE_TIME_NAME "tracker_tracker_update_time"
+#define TRACKER_HISTORY_UPDATE_TIME_NAME "tracker_history_update_time"
+#define TRACKER_RESET_TIME_NAME "tracker_reset_time"
 
 namespace tracker
 {
@@ -159,6 +168,10 @@ class TrackerRuntime
      */
     void init(const std::string& ini_path, int32 max_history_frames = 150)
     {
+        LOG_DEFAULT_INFO("TrackerRuntime: init start, ini_path: %s;", ini_path.c_str());
+        // !记录初始化时间
+        TIMER_START(TRACKER_INIT_TIME_NAME);
+
         this->_max_history_frames = max_history_frames;
 
         // 从 ini 文件解析配置 (tracker/utils.hpp 中定义);
@@ -184,7 +197,9 @@ class TrackerRuntime
         }
 
         this->_is_initialized = true;
-        LOG_DEFAULT_INFO("TrackerRuntime: init done, max_history_frames=%d;", max_history_frames);
+        LOG_DEFAULT_INFO("TrackerRuntime: init done, max_history_frames=%d, tracker_type=%s, cost_time: %s;",
+                         max_history_frames, tracker_type_to_string(this->_config.tracker_type).c_str(),
+                         TIMER_ELAPSED_STR(TRACKER_INIT_TIME_NAME).c_str());
     }
 
     /***
@@ -216,8 +231,16 @@ class TrackerRuntime
     {
         if (!this->_is_initialized)
         {
+            LOG_DEFAULT_ERROR("TrackerRuntime: not initialized, call init() first;");
             throw std::runtime_error("TrackerRuntime: not initialized, call init() first;");
         }
+
+        LOG_DEFAULT_DEBUG("TrackerRuntime: update start, frame_id=%d, detections=%zu;",
+                          this->_current_frame_id + 1,  //
+                          detections.size());
+
+        // !记录全部时间
+        TIMER_START(TRACKER_UPDATE_ALL_TIME_NAME);
 
         // 帧 ID 管理: 负数时自增, >= 0 时使用传入的帧号(含第0帧);
         if (frame_id >= 0)
@@ -228,6 +251,9 @@ class TrackerRuntime
         {
             this->_current_frame_id++;
         }
+
+        // !记录排序时间
+        TIMER_START_DEBUG(TRACKER_SORT_TIME_NAME);
 
         // 按置信度从高到低排序, 记录原始下标;
         // sorted_indices[i] = 排序后第 i 个检测在原始 detections[] 中的位置;
@@ -242,6 +268,12 @@ class TrackerRuntime
             [&detections](int32 a, int32 b) -> bool
             { return detections[static_cast<size_t>(a)].box.score > detections[static_cast<size_t>(b)].box.score; });
 
+        LOG_DEFAULT_DEBUG("TrackerRuntime: sort done, cost_time: %s;",
+                          TIMER_ELAPSED_STR_DEBUG(TRACKER_SORT_TIME_NAME).c_str());
+
+        // !记录 BoxObject 转换时间
+        TIMER_START_DEBUG(TRACKER_BOX_CONVERT_TIME_NAME);
+
         // 按排序后顺序构建 BoxObject 列表;
         // box_objects[i] 对应原始 detections[sorted_indices[i]];
         std::vector<BoxObject> box_objects;
@@ -255,9 +287,18 @@ class TrackerRuntime
             box_objects.push_back(box);
         }
 
+        LOG_DEFAULT_DEBUG("TrackerRuntime: box convert done, cost_time: %s;",
+                          TIMER_ELAPSED_STR_DEBUG(TRACKER_BOX_CONVERT_TIME_NAME).c_str());
+
+        // !记录跟踪器 update 时间
+        TIMER_START_DEBUG(TRACKER_TRACKER_UPDATE_TIME_NAME);
+
         // 通过基类虚函数指针分发调用, 无需判断 tracker_type;
         std::vector<TrackResult> results;
         this->_tracker->update(box_objects, results, this->_current_frame_id);
+
+        LOG_DEFAULT_DEBUG("TrackerRuntime: tracker update done, cost_time: %s, active_tracks=%zu;",
+                          TIMER_ELAPSED_STR_DEBUG(TRACKER_TRACKER_UPDATE_TIME_NAME).c_str(), results.size());
 
         // 将 det_index 从排序后下标回映射到原始 detections[] 下标;
         // 回映射后 results[i].det_index 直接对应调用方的 detections[det_index];
@@ -269,8 +310,19 @@ class TrackerRuntime
             }
         }
 
+        // !记录历史更新时间
+        TIMER_START_DEBUG(TRACKER_HISTORY_UPDATE_TIME_NAME);
+
         // 更新轨迹历史记录 (传入原始未排序检测列表, 此时 det_index 已完成回映射);
         this->_update_histories(results, detections, this->_current_frame_id);
+
+        LOG_DEFAULT_DEBUG("TrackerRuntime: history update done, cost_time: %s;",
+                          TIMER_ELAPSED_STR_DEBUG(TRACKER_HISTORY_UPDATE_TIME_NAME).c_str());
+        LOG_DEFAULT_INFO(
+            "TrackerRuntime: update done, frame_id=%d, "
+            "detections=%zu, active_tracks=%zu, cost_time: %s;",
+            this->_current_frame_id, detections.size(), results.size(),
+            TIMER_ELAPSED_STR(TRACKER_UPDATE_ALL_TIME_NAME).c_str());
 
         return results;
     }
@@ -321,6 +373,12 @@ class TrackerRuntime
      */
     void reset()
     {
+        LOG_DEFAULT_INFO("TrackerRuntime: reset start, total_tracks=%zu, active_tracks=%zu;",
+                         this->_histories.size(),  //
+                         this->active_track_count());
+        // !记录重置时间
+        TIMER_START_DEBUG(TRACKER_RESET_TIME_NAME);
+
         // 通过基类虚函数指针分发调用, 无需判断 tracker_type;
         if (this->_tracker)
         {
@@ -329,7 +387,8 @@ class TrackerRuntime
         this->_histories.clear();
         this->_current_frame_id = 0;
 
-        LOG_DEFAULT_INFO("TrackerRuntime: reset done;");
+        LOG_DEFAULT_INFO("TrackerRuntime: reset done, cost_time: %s;",
+                         TIMER_ELAPSED_STR_DEBUG(TRACKER_RESET_TIME_NAME).c_str());
     }
 
     /***
@@ -369,6 +428,11 @@ class TrackerRuntime
                            const std::vector<yolo::YoloObject>& detections,  //
                            int32 frame_id)
     {
+        LOG_DEFAULT_DEBUG(
+            "TrackerRuntime: _update_histories start, "
+            "frame_id=%d, results=%zu, histories_before=%zu;",
+            frame_id, results.size(), this->_histories.size());
+
         // 将所有已有历史的轨迹标记为失活 (后续再按本帧结果更新活跃状态);
         for (std::map<int32, TrackHistory>::iterator it = this->_histories.begin();  //
              it != this->_histories.end(); ++it)
@@ -377,10 +441,14 @@ class TrackerRuntime
         }
 
         // 遍历本帧活跃轨迹, 更新或创建对应的 TrackHistory;
+        int32 new_track_count = 0;
         for (size_t i = 0; i < results.size(); i++)
         {
             const TrackResult& result = results[i];
             int32 tid = result.track_id;
+
+            // 检查是否为新创建的轨迹 (首次出现);
+            bool is_new_track = (this->_histories.find(tid) == this->_histories.end());
 
             // 获取或创建 TrackHistory (若轨迹第一次出现, 默认构造一个新的);
             TrackHistory& history = this->_histories[tid];
@@ -414,10 +482,33 @@ class TrackerRuntime
             {
                 history.last_detection = detections[static_cast<size_t>(result.det_index)];
             }
+
+            if (is_new_track)
+            {
+                new_track_count++;
+                LOG_DEFAULT_DEBUG(
+                    "TrackerRuntime: new track created, "
+                    "track_id=%d, cls_id=%d, frame_id=%d;",
+                    tid, result.cls_id, frame_id);
+            }
         }
+
+        LOG_DEFAULT_DEBUG(
+            "TrackerRuntime: _update_histories done, frame_id=%d, "
+            "new_tracks=%d, active_tracks=%zu, "
+            "total_histories=%zu;",
+            frame_id, new_track_count, results.size(), this->_histories.size());
     }
 };
 
 }  // namespace tracker
+
+#undef TRACKER_INIT_TIME_NAME
+#undef TRACKER_UPDATE_ALL_TIME_NAME
+#undef TRACKER_SORT_TIME_NAME
+#undef TRACKER_BOX_CONVERT_TIME_NAME
+#undef TRACKER_TRACKER_UPDATE_TIME_NAME
+#undef TRACKER_HISTORY_UPDATE_TIME_NAME
+#undef TRACKER_RESET_TIME_NAME
 
 #endif  // !__TRACKER_RUNTIME__H__
