@@ -6,7 +6,6 @@
  * @FilePath     : /visionAlgorithm/lib/tracker/bytetrack/matching.hpp
  * @Description  : ByteTrack 匹配算法实现;
  *                 包括 IoU 距离计算和匈牙利匹配 (LAPJV);
- *                 参考 /mnt/E/CodeFiles/C++/bytetracker/src/BYTETracker.cpp;
  *
  *                 ============================================================
  *                 ByteTrack 专用工具函数
@@ -69,13 +68,16 @@ inline std::vector<std::vector<float32>> cal_iou_distance(std::vector<BytetrackT
 {
     int32 n_rows = static_cast<int32>(atracks.size());
     int32 n_cols = static_cast<int32>(btracks.size());
-    // 初始化为 1.0 (最大距离, 即 IoU = 0);
-    std::vector<std::vector<float32>> cost_matrix(n_rows, std::vector<float32>(n_cols, 1.0f));
 
+    // 参考 bytetracker iou_distance: 任一维度为 0 时返回空矩阵 (size == 0);
+    // 不能返回 n_rows 个空行, 否则 linear_assignment 会误判为非空矩阵;
     if (n_rows == 0 || n_cols == 0)
     {
-        return cost_matrix;
+        return {};
     }
+
+    // 初始化为 1.0 (最大距离, 即 IoU = 0);
+    std::vector<std::vector<float32>> cost_matrix(n_rows, std::vector<float32>(n_cols, 1.0f));
 
     for (int32 i = 0; i < n_rows; i++)
     {
@@ -125,12 +127,14 @@ inline std::vector<std::vector<float32>> cal_iou_distance(std::vector<BytetrackT
 {
     int32 n_rows = static_cast<int32>(atracks.size());
     int32 n_cols = static_cast<int32>(btracks.size());
-    std::vector<std::vector<float32>> cost_matrix(n_rows, std::vector<float32>(n_cols, 1.0f));
 
+    // 参考 bytetracker iou_distance: 任一维度为 0 时返回空矩阵 (size == 0);
     if (n_rows == 0 || n_cols == 0)
     {
-        return cost_matrix;
+        return {};
     }
+
+    std::vector<std::vector<float32>> cost_matrix(n_rows, std::vector<float32>(n_cols, 1.0f));
 
     for (int32 i = 0; i < n_rows; i++)
     {
@@ -173,42 +177,55 @@ inline std::vector<std::vector<float32>> cal_iou_distance(std::vector<BytetrackT
  *               ByteTrack 选择 LAPJV 是因为原版 Python 实现使用 lapjv 库,
  *               这里为了 API 一致性保留了 lapjv 接口;
  *
+ *               参考 bytetracker utils.cpp BYTETracker::linear_assignment;
+ *               原版使用 (cost_matrix, cost_matrix_size, cost_matrix_size_size, thresh)
+ *               的接口来传递矩阵实际行列数;
+ *               因为 cal_iou_distance 在任一输入为空时返回空矩阵,
+ *               必须依赖外部传入的 n_tracks/n_dets 来正确标记未匹配项;
+ *
  * @param cost_matrix const std::vector<std::vector<float32>>& : IoU 距离矩阵;
+ * @param n_tracks    int32 : 实际轨迹数量 (成本矩阵的行数, 即使矩阵为空也需要);
+ * @param n_dets      int32 : 实际检测数量 (成本矩阵的列数, 即使矩阵为空也需要);
  * @param thresh      float32 : 匹配阈值 (超过此值的匹配被拒绝);
  * @return ByteMatchResult : 匹配结果;
  */
 inline ByteMatchResult linear_assignment(const std::vector<std::vector<float32>>& cost_matrix,  //
+                                         int32 n_tracks,                                        //
+                                         int32 n_dets,                                          //
                                          float32 thresh)                                        //
 {
     ByteMatchResult res;
 
-    int32 n_rows = static_cast<int32>(cost_matrix.size());
-    if (n_rows == 0)
-        return res;
-    int32 n_cols = static_cast<int32>(cost_matrix[0].size());
-    if (n_cols == 0)
+    // ---- 空矩阵处理 ----
+    // 参考 bytetracker utils.cpp: 当 cost_matrix.size() == 0 时,
+    // 所有轨迹和检测都标记为未匹配;
+    // 这在第一帧 (无轨迹) 或所有轨迹丢失时发生;
+    if (cost_matrix.size() == 0)
     {
-        // 没有检测框时, 所有轨迹都标记为未匹配;
-        for (int32 i = 0; i < n_rows; i++)
+        for (int32 i = 0; i < n_tracks; i++)
             res.unmatched_tracks.push_back(i);
+        for (int32 i = 0; i < n_dets; i++)
+            res.unmatched_detections.push_back(i);
         return res;
     }
 
     // ---- 调用 LAPJV 算法求解线性分配 ----
+    // 参考 bytetracker utils.cpp BYTETracker::linear_assignment;
+    // extend_cost=true: 自动将非方阵扩展为 (n_rows+n_cols) 方阵;
+    // cost_limit=thresh: 通过 cost_limit/2.0 填充实现隐式阈值过滤;
     std::vector<int32> rowsol;
     std::vector<int32> colsol;
-    // extend_cost=true: 自动将非方阵扩展为方阵;
-    // cost_limit=thresh: 成本超过 thresh 的匹配被拒绝;
-    lapjv(cost_matrix, rowsol, colsol, true, thresh, false);
+    lapjv(cost_matrix, rowsol, colsol, true, thresh);
 
     // ---- 解析匹配结果 ----
-    for (int32 i = 0; i < n_rows; i++)
+    // 参考 bytetracker: rowsol[i] >= 0 表示行 i 匹配到了真实列;
+    // rowsol[i] == -1 表示行 i 被分配到了虚拟列 (即未匹配);
+    for (int32 i = 0; i < static_cast<int32>(rowsol.size()); i++)
     {
-        int32 j = rowsol[i];
-        if (j >= 0 && j < n_cols && cost_matrix[i][j] <= thresh)
+        if (rowsol[i] >= 0)
         {
             // 找到有效匹配;
-            res.matches.push_back(std::make_pair(i, j));
+            res.matches.push_back(std::make_pair(i, rowsol[i]));
         }
         else
         {
@@ -218,7 +235,7 @@ inline ByteMatchResult linear_assignment(const std::vector<std::vector<float32>>
     }
 
     // ---- 收集未匹配的检测 ----
-    for (int32 j = 0; j < n_cols; j++)
+    for (int32 j = 0; j < static_cast<int32>(colsol.size()); j++)
     {
         if (colsol[j] < 0)
         {

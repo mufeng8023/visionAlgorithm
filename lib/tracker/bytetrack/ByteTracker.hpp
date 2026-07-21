@@ -220,7 +220,10 @@ class ByteTracker : public BaseTracker
 
         // 计算 IoU 距离矩阵并求解线性分配;
         std::vector<std::vector<float32>> dists_1 = cal_iou_distance(strack_pool, detections_high_track);
-        ByteMatchResult match1 = linear_assignment(dists_1, this->_config.match_thresh);
+        ByteMatchResult match1 = linear_assignment(dists_1,                                           //
+                                                   static_cast<int32>(strack_pool.size()),            //
+                                                   static_cast<int32>(detections_high_track.size()),  //
+                                                   this->_config.match_thresh);
 
         // 处理关联一结果;
         std::vector<BytetrackTrack> activated_stracks;
@@ -269,7 +272,10 @@ class ByteTracker : public BaseTracker
         // 使用更宽松的阈值 match_thresh_low (默认 0.5, 比 match_thresh 低);
         // 允许低分检测框的模糊匹配, 适应目标被遮挡时的低置信度情况;
         std::vector<std::vector<float32>> dists_2 = cal_iou_distance(r_tracked_stracks, detections_low_track);
-        ByteMatchResult match2 = linear_assignment(dists_2, this->_config.match_thresh_low);
+        ByteMatchResult match2 = linear_assignment(dists_2,                                          //
+                                                   static_cast<int32>(r_tracked_stracks.size()),     //
+                                                   static_cast<int32>(detections_low_track.size()),  //
+                                                   this->_config.match_thresh_low);
 
         // 处理关联二结果;
         std::vector<BytetrackTrack> lost_stracks_new;
@@ -328,7 +334,10 @@ class ByteTracker : public BaseTracker
         // 使用阈值 match_thresh_unconfirmed (默认 0.7, 对未确认轨迹稍严格);
         // 未确认轨迹只出现了 1 帧, 需要更高可信度的匹配才能继续存活;
         std::vector<std::vector<float32>> dists_3 = cal_iou_distance(unconfirmed, detections_cp_track);
-        ByteMatchResult match3 = linear_assignment(dists_3, this->_config.match_thresh_unconfirmed);
+        ByteMatchResult match3 = linear_assignment(dists_3,                                         //
+                                                   static_cast<int32>(unconfirmed.size()),          //
+                                                   static_cast<int32>(detections_cp_track.size()),  //
+                                                   this->_config.match_thresh_unconfirmed);
 
         // 关联三匹配成功: 未确认轨迹继续存活并更新;
         for (size_t i = 0; i < match3.matches.size(); i++)
