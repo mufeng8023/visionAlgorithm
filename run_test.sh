@@ -26,6 +26,9 @@ RESULT="${ROOT}/test_res_temp"
 # 注意: onnx文件名可能与ini文件名不同(如 yolov8nDetPose 的 onnx 是 yolov8nPose)
 #       重命名后缀可选, 留空表示不重命名结果文件
 MODELS=(
+    # YOLOv4 人体检测模型
+    "yolov4GhostT2DetPerson-bn    yolov4GhostT2DetPerson-bn.ini    yolov4GhostT2DetPerson-bn.onnx    test_v8pose01.jpg    yolov4GhostT2DetPerson"
+
     # 人脸检测模型
     "yolov5ssFaceDet-bn    yolov5ssFaceDet-bn.ini    yolov5ssFaceDet-bn.onnx    test_v8pose01.jpg    yolov5ssFaceDet"
     "yolov5ssFaceKpt2-bn   yolov5ssFaceKpt2-bn.ini   yolov5ssFaceKpt2-bn.onnx   test_v8pose01.jpg    yolov5ssFaceKpt2"

@@ -12,6 +12,7 @@
 #define __RUNTIME__H__
 
 #include "detector/DetPostProcess26.hpp"
+#include "detector/DetPostProcessV4.hpp"
 #include "detector/DetPostProcessV5.hpp"
 #include "detector/DetPostProcessV8.hpp"
 #include "detector/OpencvNet.hpp"
@@ -142,6 +143,12 @@ class RunTime
 
                 switch (this->config.model_type)
                 {
+                    case ModelType::yolov4:
+                        // 初始化 DetPostProcessV4
+                        this->postProcess = std::make_shared<DetPostProcessV4>(this->config);
+                        LOG_DEFAULT_INFO("Init DetPostProcessV4 Success!");
+                        break;  // case ModelType::yolov4
+
                     case ModelType::yolov5:
                         // 初始化 DetPostProcessV5
                         this->postProcess = std::make_shared<DetPostProcessV5>(this->config);

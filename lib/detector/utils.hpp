@@ -182,13 +182,15 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     config.anchors = ini_parser.get_array2d<float32>("detection", "anchors");
     LOG_DEFAULT_INFO("anchors:%s", table_to_string(config.anchors).c_str());
 
-    if (config.model_type == ModelType::yolov5 && config.anchors.empty())
+    if ((config.model_type == ModelType::yolov4 || config.model_type == ModelType::yolov5)  //
+        && config.anchors.empty())
     {
         LOG_DEFAULT_ERROR(
-            "The yolov5 model must have anchors. yolov5u is an anchor-free model. "
+            "The yolov4 or yolov5 model must have anchors. "
+            "yolov5u is an anchor-free model. "
             "Please confirm whether you intended to specify yolov5u.");
         throw std::runtime_error(
-            "The yolov5 model must have anchors. yolov5u is an anchor-free model. "
+            "The yolov4 or yolov5 model must have anchors. yolov5u is an anchor-free model. "
             "Please confirm whether you intended to specify yolov5u.");
     }
 
@@ -207,8 +209,9 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     // anchor-free yolov8: 4 + nc + kpt_count * kpt_dim
     if (config.task == TaskType::detection)
     {
-        // anchor-base 只有 yolov5-face 才需要 conf
-        if (config.model_type == ModelType::yolov5 && config.has_conf)
+        // anchor-base 只有 yolov4 / yolov5-face 才需要 conf
+        if ((config.model_type == ModelType::yolov4 || config.model_type == ModelType::yolov5)  //
+            && config.has_conf)
         {
             config.no = 4 + 1 + config.nc;
         }
@@ -219,8 +222,9 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     }
     else if (config.task == TaskType::pose)
     {
-        // anchor-base 只有 yolov5-face 才需要 conf
-        if (config.model_type == ModelType::yolov5 && config.has_conf)
+        // anchor-base 只有 yolov4 / yolov5-face 才需要 conf
+        if ((config.model_type == ModelType::yolov4 || config.model_type == ModelType::yolov5)  //
+            && config.has_conf)
         {
             config.no = 4 + 1 + config.nc + config.kpt_count * config.kpt_dim;
         }
@@ -248,7 +252,7 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     LOG_DEFAULT_INFO("min_conf:%f", config.min_conf);
 
     // 确保 scale_outputs / anchors / strides 数量一致
-    if (config.model_type == ModelType::yolov5)
+    if (config.model_type == ModelType::yolov4 || config.model_type == ModelType::yolov5)
     {
         if (config.scale_outputs.size() != config.nl || config.anchors.size() != config.nl)
         {
@@ -261,7 +265,8 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
     {
         if (config.scale_outputs.size() != config.nl)
         {
-            LOG_DEFAULT_ERROR("scale_outputs:%d / strides:%d size not equal to nl:%d", config.scale_outputs.size(),
+            LOG_DEFAULT_ERROR("scale_outputs:%d / strides:%d size not equal to nl:%d",
+                              config.scale_outputs.size(),  //
                               config.strides.size(), config.nl);
             throw std::runtime_error("scale_outputs / strides size not equal");
         }
@@ -280,7 +285,8 @@ void parser_ini_det_net_config(const std::string& ini_path, DetectionNetConfig& 
 
         config.net_out_h.push_back(config.input_height / stride);
         config.net_out_w.push_back(config.input_width / stride);
-        LOG_DEFAULT_INFO("net_out_h[%d]:%d, net_out_w[%d]:%d", i, config.net_out_h[i], i, config.net_out_w[i]);
+        LOG_DEFAULT_INFO("net_out_h[%d]:%d, net_out_w[%d]:%d",  //
+                         i, config.net_out_h[i], i, config.net_out_w[i]);
     }
 
     LOG_DEFAULT_INFO("load ini_path:%s", ini_path.c_str());
