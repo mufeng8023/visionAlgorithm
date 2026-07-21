@@ -38,8 +38,8 @@
 #ifndef __DEEPSORT_MATCHING__H__
 #define __DEEPSORT_MATCHING__H__
 
-#include <cmath>   // std::sqrt
-#include <vector> 
+#include <cmath>  // std::sqrt
+#include <vector>
 
 #include "tracker/BoxKalmanFilter.hpp"
 #include "tracker/deepsort/DeepSortTrack.hpp"
@@ -563,19 +563,37 @@ inline MatchResult cascade_matching(KFBox* kf,                                 /
                                                   level_track_indices,  //
                                                   unmatched_detections);
 
-        // ---- 合并当前层的匹配结果到最终结果 ----
+        // ---- 合并当前层的匹配对到最终结果 ----
         for (size_t m = 0; m < level_res.matches.size(); m++)
         {
             final_res.matches.push_back(level_res.matches[m]);
         }
-        for (size_t m = 0; m < level_res.unmatched_tracks.size(); m++)
-        {
-            final_res.unmatched_tracks.push_back(level_res.unmatched_tracks[m]);
-        }
+        // 注意: 不在循环内累积 unmatched_tracks;
+        // 原因: 逐层累积会遗漏 time_since_update > cascade_depth 的轨迹,
+        //       这些轨迹不属于任何级联层, 永远不会被 mark_missed(), 变成僵尸轨迹;
 
         // ---- 更新未匹配检测列表 ----
         // 在当前层匹配掉的检测框, 不再参与后续层的匹配;
         unmatched_detections = level_res.unmatched_detections;
+    }
+
+    // ---- 计算未匹配轨迹 (参考 Python 原版 DeepSORT) ----
+    // 原始 Python 实现: unmatched_tracks = set(track_indices) - set(k for k, _ in matches)
+    // 用集合差集代替逐层累积, 确保所有未匹配的轨迹都被正确收集,
+    // 包括 time_since_update > cascade_depth 的轨迹 (它们不属于任何级联层);
+    {
+        std::vector<bool> matched_flags(tracks.size(), false);
+        for (size_t m = 0; m < final_res.matches.size(); m++)
+        {
+            matched_flags[static_cast<size_t>(final_res.matches[m].first)] = true;
+        }
+        for (size_t k = 0; k < track_indices.size(); k++)
+        {
+            if (!matched_flags[static_cast<size_t>(track_indices[k])])
+            {
+                final_res.unmatched_tracks.push_back(track_indices[k]);
+            }
+        }
     }
 
     // ---- 最后剩余的未匹配检测 ----
