@@ -2,7 +2,7 @@
  * @Author       : gxs
  * @Date         : 2026-07-21 14:30:00
  * @LastEditors  : gxs
- * @LastEditTime : 2026-07-21 14:30:00
+ * @LastEditTime : 2026-07-21 16:06:00
  * @FilePath     : /visionAlgorithm/lib/detector/DetPostProcessV4.hpp
  * @Description  : YOLOv4 后处理 (anchor-base)
  * @
@@ -20,25 +20,40 @@
  *   => C++ 中拿到的 x/y/conf/cls 已经是 sigmoid 后的值 (范围 [0,1])
  *   => C++ 中拿到的 w/h 已经是 exp 后的值 (正数)
  *
- * 【YOLOv4 解码公式】
+ * 【YOLOv4 解码公式 (与 test/run_onnx.py 一致)】
  *
  *   符号说明:
  *     tx, ty, tw, th : ONNX 输出的原始值 (已 sigmoid/exp)
  *     grid_x, grid_y : 特征图网格坐标 (0,1,...,feat_w-1 / 0,1,...,feat_h-1)
  *     anchor_w, anchor_h : 该层的 anchor 宽度/高度 (在模型输入 384x640 坐标系中)
- *     stride_w, stride_h : 该特征图的步长 = input_w / feat_w
+ *     stride : 该特征图的步长 = input_w / feat_w (输入宽高均为 stride 整数倍)
  *
- *   解码 (直接输出 384x640 坐标系下的边界框):
- *     cx = (tx + grid_x) * stride_w
- *     cy = (ty + grid_y) * stride_h
- *     w  = tw * anchor_w
- *     h  = th * anchor_h
+ *   解码步骤:
+ *     1. 特征图坐标系:
+ *        box_cx = tx + grid_x         (tx 已 sigmoid)
+ *        box_cy = ty + grid_y         (ty 已 sigmoid)
+ *        box_w  = tw * (anchor_w / stride)  (tw 已 exp)
+ *        box_h  = th * (anchor_h / stride)  (th 已 exp)
+ *
+ *     2. 缩放到 384x640 坐标系:
+ *        cx = box_cx * stride = (tx + grid_x) * stride
+ *        cy = box_cy * stride = (ty + grid_y) * stride
+ *        w  = box_w  * stride = tw * anchor_w
+ *        h  = box_h  * stride = th * anchor_h
+ *
+ *   Python 参考代码中通过 "pred_boxes / _scale * expand" 实现:
+ *     _scale = [feat_w, feat_h, feat_w, feat_h]
+ *     expand = [input_w, input_h, input_w, input_h]
+ *     => cx = (tx+grid_x)/feat_w*input_w = (tx+grid_x)*stride
+ *     => w  = (tw*anchor_w_feat)/feat_w*input_w = tw*anchor_w
  *
  *   【对比 YOLOv5 的关键区别】
  *     YOLOv5: cx = (sig(tx)*2 - 0.5 + grid_x) * stride
  *             w  = (sig(tw)*2)^2 * anchor_w
- *     YOLOv4: cx = (sig(tx) + grid_x) * stride          (无 *2-0.5)
- *             w  = exp(tw) * anchor_w                    (无平方)
+ *     YOLOv4: cx = (sig(tx) + grid_x) * stride
+ *             w  = exp(tw) * anchor_w
+ *
+ *   score = conf * max_class_score
  *
  * 【Anchor 信息】
  *   每个特征层 3 个 anchor, 每层 6 个值 (w1,h1,w2,h2,w3,h3)
@@ -138,256 +153,167 @@ class DetPostProcessV4 : public BasePostProcess
     }
 
     // 禁止各种复制拷贝, 只引用传递
-    /***
-     * @description: 禁用拷贝构造函数, 防止对象被拷贝
-     * @return
-     */
     DetPostProcessV4(const DetPostProcessV4& other) = delete;
-
-    /***
-     * @description: 禁用赋值操作符, 防止对象被赋值
-     * @return
-     */
     DetPostProcessV4& operator=(const DetPostProcessV4& other) = delete;
-
-    /***
-     * @description: 禁用移动构造函数, 防止对象被移动
-     * @return
-     */
     DetPostProcessV4(DetPostProcessV4&& other) = default;
-
-    /***
-     * @description: 禁用移动赋值操作符, 防止对象被移动
-     * @return
-     */
     DetPostProcessV4& operator=(DetPostProcessV4&& other) = default;
-
-    /***
-     * @description: 析构函数
-     * @return
-     */
     ~DetPostProcessV4() = default;
 
     /***
      * @description: 处理一层输出特征图
-     * YOLOv4 解码公式 (ONNX 已做 sigmoid/exp):
-     *   cx = (tx + grid_x) * stride_w
-     *   cy = (ty + grid_y) * stride_h
-     *   w  = tw * anchor_w    (anchor_w 是模型输入尺寸的 anchor 宽度)
-     *   h  = th * anchor_h    (anchor_h 是模型输入尺寸的 anchor 高度)
-     * @param output NetOutput& : 输出的网络特征图
-     * @param result ObjectBuffer& : 解析出来的结果
-     * @param anchors_per_layer const std::vector<float32>& : 当前层的 anchors [w1,h1,w2,h2,w3,h3]
-     * @param scale_output float32 : 反量化系数
-     * @param net_out_h uint32 : 输出特征图的高
-     * @param net_out_w uint32 : 输出特征图的宽
-     * @param stride uint32 : 输出特征图的步长
-     * @return
+     * 代码结构参考 DetPostProcessV5, 解码公式使用 YOLOv4 (与 run_onnx.py 一致):
+     *   cx = (tx + grid_x) * stride   (tx已sigmoid)
+     *   cy = (ty + grid_y) * stride   (ty已sigmoid)
+     *   w  = tw * anchor_w            (tw已exp)
+     *   h  = th * anchor_h            (th已exp)
+     *   score = conf * max(class_scores)
      */
-    void process_one(const NetOutput& output,                        //
-                     std::vector<ObjectBuffer>& results,             //
-                     const std::vector<float32>& anchors_per_layer,  //
-                     const float32 scale_output,                     //
-                     const uint32 net_out_h,                         //
-                     const uint32 net_out_w,                         //
-                     const uint32 stride                             //
-    )
+    void process_one(const NetOutput& output,              //
+                     std::vector<ObjectBuffer>& results,   //
+                     const std::vector<float32>& anchors,  //
+                     const float32 scale_output,           //
+                     const uint32 net_out_h,               //
+                     const uint32 net_out_w,               //
+                     const uint32 stride)
     {
-        // NOTE: 提前计算好单张特征图一个通道的面积, 避免在内层循环中重复计算乘法
+        // 单通道面积, 避免内层循环重复计算
         const uint32 grid_size = net_out_h * net_out_w;
+        // 类别偏移量: YOLOv4 有 conf, class_offset=5
+        const uint32 class_offset = this->has_conf ? 5 : 4;
 
-        // YOLOv4 是 anchor-base with has_conf=true, class_offset 固定为 5
-        const uint32 class_offset = 5;  // 4个bbox + 1个conf
-
-        // 遍历整个特征图, 解析出每个位置的结果
-        // 开始遍历特征图 (B, na * no, h, w)
         bool max_det_reached = false;
         for (uint32 batch_idx = 0; batch_idx < this->batch_size && !max_det_reached; ++batch_idx)
         {
-            // 遍历每个特征图的位置 (na * no, h, w)
-            // 遍历anchor索引
             for (uint32 anchor_idx = 0; anchor_idx < this->na && !max_det_reached; ++anchor_idx)
             {
-                // 根据 batch 获取 result
                 ObjectBuffer& result = results[batch_idx];
 
-                // 这里计算的是每个 batch 的 每个 anchor 实际索引, 用来计算偏移量
-                // 将原本四维寻址展平 (batch, na * no, h, w) -> ( batch * na * no * h * w, )
+                // 展平四维 -> (batch * na * no * h * w,)
                 uint32 base_ch_idx = (batch_idx * this->na + anchor_idx) * this->no;
-
-                // 获取当 batch 的第 anchor_idx 的首地址, 后续通过 base_output_ptr[idx] 访问数据
                 const float32* base_output_ptr = output.data() + base_ch_idx * grid_size;
 
-                // 当前组的 anchor (在模型输入 384x640 坐标系中)
-                const float32& anchor_w = anchors_per_layer[anchor_idx * 2];
-                const float32& anchor_h = anchors_per_layer[anchor_idx * 2 + 1];
+                // 当前 anchor 的宽高 (模型输入坐标系)
+                const float32& anchor_w = anchors[anchor_idx * 2];
+                const float32& anchor_h = anchors[anchor_idx * 2 + 1];
 
-                // 核心优化: 在进入循环之前, 先将 x / y / w / h / conf / nc 的各自通道的 [绝对首地址] 指针
-                // 彻底消除了原代码最内层中类似 [feature_addr + k * channel_stride] 的复杂乘法寻址
+                // 指针优化: 提前计算各通道首地址, 消除内层循环的乘法寻址
                 const float32* x_ptr = base_output_ptr + 0 * grid_size;
                 const float32* y_ptr = base_output_ptr + 1 * grid_size;
                 const float32* w_ptr = base_output_ptr + 2 * grid_size;
                 const float32* h_ptr = base_output_ptr + 3 * grid_size;
-                // YOLOv4 有置信度通道
-                const float32* conf_ptr = base_output_ptr + 4 * grid_size;
-                // 类别首地址
+                const float32* conf_ptr = this->has_conf ? base_output_ptr + 4 * grid_size : nullptr;
                 const float32* class_ptr = base_output_ptr + class_offset * grid_size;
 
-                // 遍历每个位置 (特征图网格)
-                // 核心优化, 将 grid_y 和 grid_x 调整至最内层
-                // 这样在进行 `[offset]` 访问时, 内存是完全连续线性扫描的, 极大地提升了 CPU Cache 命中率
+                // 遍历特征图网格, 行优先扫描以最大化 Cache 命中
                 for (uint32 grid_y = 0; grid_y < net_out_h && !max_det_reached; ++grid_y)
                 {
-                    // 提前计算 当前行首地址 相对于 grid 的首地址的偏移量
                     uint32 row_offset = grid_y * net_out_w;
 
                     for (uint32 grid_x = 0; grid_x < net_out_w && !max_det_reached; ++grid_x)
                     {
-                        // 计算当前 像素点 在 grid 的实际 偏移量
                         uint32 grid_offset = row_offset + grid_x;
 
-                        // 获取当前已检测到的目标数量
+                        // 检查是否达到最大检测数
                         size_t output_idx = result.get_obj_count();
                         if (output_idx >= this->max_det)
                         {
-                            // 超过最大检测数, 直接退出所有循环
                             LOG_DEFAULT_WARN("最大检测数量为: %d, 当前检测数量为: %d, 退出检测",  //
                                              this->max_det, output_idx);
                             max_det_reached = true;
                             break;
                         }
 
-                        // 获取box置信度 (ONNX 已做 sigmoid, 范围 [0,1])
-                        float32 box_conf = conf_ptr[grid_offset] * scale_output;
-
-                        // 置信度小于阈值, 跳过
+                        // box 置信度 (已sigmoid)
+                        float32 box_conf = 1.0f;
+                        if (this->has_conf)
+                        {
+                            box_conf = conf_ptr[grid_offset] * scale_output;
+                        }
                         if (box_conf < this->min_conf)
                         {
                             continue;
                         }
 
-                        // 最大类别分数 (ONNX 已做 sigmoid, 范围 [0,1])
+                        // 遍历所有类别, 找到最高分
                         float32 max_class_score = -1.0f;
-                        // 最大分数对应的类别索引
                         uint32 max_class_idx = 0;
-
-                        // 定义一个临时指针指向当前类别的通道
                         const float32* cur_class_ptr = class_ptr;
-                        // 遍历所有类别, 找出最大分数和对应类别
                         for (uint32 class_idx = 0; class_idx < this->nc; ++class_idx)
                         {
-                            // 类别通道的指针定位同样利用预计算的行首, 保持 offset 的连续性
                             float32 class_score = cur_class_ptr[grid_offset] * scale_output;
-
                             if (max_class_score < class_score)
                             {
                                 max_class_score = class_score;
                                 max_class_idx = class_idx;
                             }
-
-                            // 更新类别指针 (指向下一个类别通道)
                             cur_class_ptr += grid_size;
                         }
 
                         // 最终置信度 = box_conf * max_class_score
                         box_conf *= max_class_score;
 
-                        // 根据各类别的阈值进行过滤
+                        // 类别阈值过滤
                         if (box_conf < this->conf_thrs[max_class_idx])
                         {
                             continue;
                         }
 
-                        // 扩展result缓冲区, 并标记为有效
+                        // 保存结果
                         result.expand_obj();
                         result.set_valid(output_idx, true);
 
-                        // 【YOLOv4 解码公式】
-                        // cx = (tx + grid_x) * stride
-                        // cy = (ty + grid_y) * stride
-                        // w  = tw * anchor_w
-                        // h  = th * anchor_h
-                        //
-                        // 注: tx/ty/tw/th 的 sigmoid/exp 已在 ONNX 中完成
-                        // stride_w 和 stride_h 相同 (输入宽高为 stride 的整数倍)
-
-                        // cx坐标: (tx + grid_x) * stride
-                        // tx 是 ONNX 输出的中心点 x 偏移 (已 sigmoid, 范围 [0,1])
-                        // grid_x 是特征图中的网格列索引
+                        // YOLOv4 解码 (tx/ty/conf/cls 已sigmoid, tw/th 已exp)
                         float32 tx = x_ptr[grid_offset] * scale_output;
                         result[output_idx][ObjectOffset::x_center] =
                             (tx + static_cast<float32>(grid_x)) * static_cast<float32>(stride);
 
-                        // cy坐标: (ty + grid_y) * stride
-                        // ty 是 ONNX 输出的中心点 y 偏移 (已 sigmoid, 范围 [0,1])
-                        // grid_y 是特征图中的网格行索引
                         float32 ty = y_ptr[grid_offset] * scale_output;
                         result[output_idx][ObjectOffset::y_center] =
                             (ty + static_cast<float32>(grid_y)) * static_cast<float32>(stride);
 
-                        // w宽度: tw * anchor_w
-                        // tw 是 ONNX 输出的宽度缩放系数 (已 exp, 正数)
-                        // anchor_w 是 anchor 的原始宽度 (在模型输入坐标系中)
                         float32 tw = w_ptr[grid_offset] * scale_output;
                         result[output_idx][ObjectOffset::width] = tw * anchor_w;
 
-                        // h高度: th * anchor_h
-                        // th 是 ONNX 输出的高度缩放系数 (已 exp, 正数)
-                        // anchor_h 是 anchor 的原始高度 (在模型输入坐标系中)
                         float32 th = h_ptr[grid_offset] * scale_output;
                         result[output_idx][ObjectOffset::height] = th * anchor_h;
 
-                        // 存储最终置信度和类别索引
                         result[output_idx][ObjectOffset::score] = box_conf;
                         result[output_idx][ObjectOffset::cls_id] = static_cast<float32>(max_class_idx);
 
                     }  // for grid_x
-
                 }  // for grid_y
-
             }  // for anchor_idx
-
         }  // for batch_idx
     }
 
     void run(const std::vector<NetOutput>& outputs, std::vector<ObjectBuffer>& results) override
     {
-        // 记录后处理时间
         TIMER_START_DEBUG(DET_POSTPROCESS_TIME_NAME);
 
-        // 安全检查: outputs 或 results 不能为空
         if (outputs.empty() || results.empty())
         {
-            LOG_DEFAULT_ERROR("%s: outputs(%zu) or results(%zu) is empty",
-                              this->to_string().c_str(),  //
-                              outputs.size(),             //
+            LOG_DEFAULT_ERROR("%s: outputs(%zu) or results(%zu) is empty", this->to_string().c_str(), outputs.size(),
                               results.size());
             return;
         }
 
-        // 遍历每一层输出特征图, 解析并将多个特征图的结果保存到一个对象中
         for (uint32 i = 0; i < this->nl; ++i)
         {
-            this->process_one(outputs[i],              // 当前层的输出
-                              results,                 // 当前层的对象结果
-                              this->anchors[i],        // 当前层的anchors (在模型输入坐标系中)
-                              this->scale_outputs[i],  // 当前层的scale_output
-                              this->net_out_h[i],      // 当前层的net_out_h
-                              this->net_out_w[i],      // 当前层的net_out_w
-                              this->strides[i]         // 当前层的stride
+            this->process_one(outputs[i],              //
+                              results,                 //
+                              this->anchors[i],        //
+                              this->scale_outputs[i],  //
+                              this->net_out_h[i],      //
+                              this->net_out_w[i],      //
+                              this->strides[i]         //
             );
         }
 
         LOG_DEFAULT_DEBUG("%s cost time: %s", this->to_string().c_str(),
                           TIMER_ELAPSED_STR_DEBUG(DET_POSTPROCESS_TIME_NAME).c_str());
 
-        // 记录 NMS 时间
         TIMER_START_DEBUG(DET_NMS_TIME_NAME);
-
-        // 判断一下, 如果没有检测目标, 就直接返回, 不会进行 NMS
         non_max_suppression(results, this->iou_thrs, this->agnostic);
-
-        // 记录 NMS 时间
         LOG_DEFAULT_DEBUG("non_max_suppression cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_NMS_TIME_NAME).c_str());
     }
 };
