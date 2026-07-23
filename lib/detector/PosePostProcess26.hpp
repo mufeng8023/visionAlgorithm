@@ -450,11 +450,11 @@ class PosePostProcess26 : public BasePostProcess
         // 因为是端到端的 yolo26 不需要进行 NMS, 置信度大于 conf_thr 的都是最终的预测结果
         // 虽然不需要进行 nms 但是需要根据分数排序, 之后再取前 max_det 个 作为结果
         // 在 this->process_one 中不能对输出结果使用 max_det 进行拦截, 否则可能会导致输出结果丢失
-        non_max_suppression(results,         //
-                            this->iou_thrs,  //
-                            this->agnostic,  //
-                            this->max_det,   //
-                            true             // end2end 标志必须是 true
+        this->non_max_suppression(results,         //
+                                  this->iou_thrs,  //
+                                  this->agnostic,  //
+                                  this->max_det,   //
+                                  true             // end2end 标志必须是 true
         );
 
         // 记录 NMS 时间

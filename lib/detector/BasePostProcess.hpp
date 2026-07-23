@@ -31,13 +31,24 @@ namespace yolo
 {
 
 /***
+ * @description: 内部实现细节命名空间, 外部代码不应直接使用
+ * @return
+ */
+namespace detail
+{
+
+/***
  * @description: 对一个图片的结果进行nms操作
  * @param output ObjectBuffer& : 一张图片的所有结果
  * @param iou_thr float32 : iou阈值
  * @param agnostic bool : 是否进行类别不敏感的nms, 为 false 时不同类别之间的box不会nms
+ * @param indices_buffer std::vector<size_t>& : 外部传入的排序索引缓冲区, 复用内存, 避免重复分配
  * @return
  */
-static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool agnostic = false)
+static inline void nms_ops(ObjectBuffer& output,
+                           float32 iou_thr,  //
+                           bool agnostic,    //
+                           std::vector<size_t>& indices_buffer)
 {
     // 获取所有目标的个数
     size_t count = output.get_obj_count();
@@ -52,13 +63,13 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
     // 开始进行nms操作
     LOG_DEFAULT_DEBUG("nms_ops: start nms, get sorted indices");
     //  获取按分数降序排列的索引列表, 添加进来的有效+无效[可能存在, 置信度筛选低于阈值被置为无效]的目标个数
-    std::vector<size_t> indices = output.get_sorted_indices();
+    indices_buffer = output.get_sorted_indices();
 
     LOG_DEFAULT_DEBUG("nms_ops: start for loop to remove overlapped obj");
     //  遍历索引列表
-    for (size_t i = 0; i < indices.size(); ++i)
+    for (size_t i = 0; i < indices_buffer.size(); ++i)
     {
-        size_t obj_idx_i = indices[i];
+        size_t obj_idx_i = indices_buffer[i];
         // 如果当前目标是无效的就跳过
         if (!output.is_valid(obj_idx_i))
         {
@@ -76,9 +87,9 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
         float32 area_i = data_i_fp32p[ObjectOffset::width] * data_i_fp32p[ObjectOffset::height];
         uint32 cls_id_i = static_cast<uint32>(data_i_fp32p[ObjectOffset::cls_id]);
 
-        for (size_t j = i + 1; j < indices.size(); ++j)
+        for (size_t j = i + 1; j < indices_buffer.size(); ++j)
         {
-            size_t obj_idx_j = indices[j];
+            size_t obj_idx_j = indices_buffer[j];
 
             // 如果当前目标是无效的就跳过
             if (!output.is_valid(obj_idx_j))
@@ -147,10 +158,13 @@ static inline void nms_ops(ObjectBuffer& output, float32 iou_thr = 0.45, bool ag
 /***
  * @description:
  * @param output ObjectBuffer& : 后处理后的输出结果,
- * @param max_det uint32 :
+ * @param max_det uint32 : 每个图片最多检测多少个目标
+ * @param indices_buffer std::vector<size_t>& : 外部传入的排序索引缓冲区, 复用内存, 避免重复分配
  * @return
  */
-static inline void end2end_post(ObjectBuffer& output, size_t max_det = 300)
+static inline void end2end_post(ObjectBuffer& output,
+                                size_t max_det,  //
+                                std::vector<size_t>& indices_buffer)
 {
     // 获取所有目标的个数
     size_t count = output.get_obj_count();
@@ -181,13 +195,13 @@ static inline void end2end_post(ObjectBuffer& output, size_t max_det = 300)
     }
 
     //  获取按分数降序排列的索引列表, 添加进来的有效+无效[可能存在, 置信度筛选低于阈值被置为无效]的目标个数
-    std::vector<size_t> indices = output.get_sorted_indices();
+    indices_buffer = output.get_sorted_indices();
 
     // 遍历索引列表, max_det 个目标后, 剩余的目标设置为 无效
-    for (size_t idx = max_det; idx < indices.size(); ++idx)
+    for (size_t idx = max_det; idx < indices_buffer.size(); ++idx)
     {
         // 目标设置为 无效
-        output.set_valid(indices[idx], false);
+        output.set_valid(indices_buffer[idx], false);
     }
 
     // 压缩物理缓存区, 将目标变得连续
@@ -207,14 +221,17 @@ static inline void end2end_post(ObjectBuffer& output, size_t max_det = 300)
  * !本次设计是直接在每个 ObjectBuffer 上直接进行 nms 操作, 原地修改, 所以不能使用const
  * @param iou_thr float32 : IoU 阈值
  * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
+ * @param max_det uint32 : 每个图片最多检测多少个目标
+ * @param end2end bool : 是否为端到端模型(不需要nms, 只需要排序取topk)
+ * @param indices_buffer std::vector<size_t>& : 外部传入的排序索引缓冲区, 复用内存, 避免重复分配
  * @return
  */
 inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
-                                float32 iou_thr = 0.45,              //
-                                bool agnostic = false,               //
-                                size_t max_det = 300,                //
-                                bool end2end = false                 //
-)
+                                float32 iou_thr,                     //
+                                bool agnostic,                       //
+                                size_t max_det,                      //
+                                bool end2end,                        //
+                                std::vector<size_t>& indices_buffer)
 {
 #ifdef DEBUG_MODE
     // 断言检查
@@ -245,11 +262,11 @@ inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
         {
             if (end2end)  // yolo26 和 yolov10 都是使用 end2end 模式
             {
-                end2end_post(output, max_det);
+                detail::end2end_post(output, max_det, indices_buffer);
             }
             else
             {
-                nms_ops(output, iou_thr, agnostic);
+                detail::nms_ops(output, iou_thr, agnostic, indices_buffer);
             }
         }
         catch (const std::exception& e)
@@ -259,8 +276,14 @@ inline void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
     }
 }
 
+}  // namespace detail
+
 class BasePostProcess
 {
+   protected:
+    // NMS 排序索引缓冲区, 初始化时预申请, 避免每次 NMS 重复分配内存
+    std::vector<size_t> nms_indices_buffer;
+
    public:
     /***
      * @description:
@@ -274,6 +297,31 @@ class BasePostProcess
      */
     virtual ~BasePostProcess() = default;
 
+   protected:
+    /***
+     * @description: NMS(非极大值抑制) 封装函数, 使用类内预申请的 nms_indices_buffer,
+     *               避免每次 NMS 重复分配堆内存
+     * @param outputs std::vector<ObjectBuffer>& : 后处理后的输出结果, 每个图片算一个 ObjectBuffer
+     * @param iou_thr float32 : IoU 阈值
+     * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
+     * @param max_det uint32 : 每个图片最多检测多少个目标 (默认300)
+     * @param end2end bool : 是否为端到端模型(不需要nms, 只需要排序取topk) (默认false)
+     * @return
+     */
+    void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
+                             float32 iou_thr,                     //
+                             bool agnostic,                       //
+                             size_t max_det = 300,                //
+                             bool end2end = false)
+    {
+        yolo::detail::non_max_suppression(outputs, iou_thr,  //
+                                          agnostic,          //
+                                          max_det,           //
+                                          end2end,           //
+                                          this->nms_indices_buffer);
+    }
+
+   public:
     /***
      * @description: 后处理函数, 在当前函数中要实现对输出的特征图映射为具体的检测框和其他信息,
      * 根据不同类别的置信度进行筛选,
