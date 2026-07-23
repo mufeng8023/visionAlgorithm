@@ -304,14 +304,14 @@ class BasePostProcess
      * @param outputs std::vector<ObjectBuffer>& : 后处理后的输出结果, 每个图片算一个 ObjectBuffer
      * @param iou_thr float32 : IoU 阈值
      * @param agnostic bool : 是否进行类别区分, false: 不同类别之间不会进行nms
-     * @param max_det uint32 : 每个图片最多检测多少个目标 (默认300)
+     * @param max_det uint32 : 每个图片最多检测多少个目标
      * @param end2end bool : 是否为端到端模型(不需要nms, 只需要排序取topk) (默认false)
      * @return
      */
     void non_max_suppression(std::vector<ObjectBuffer>& outputs,  //
                              float32 iou_thr,                     //
                              bool agnostic,                       //
-                             size_t max_det = 300,                //
+                             size_t max_det,                      //
                              bool end2end = false)
     {
         yolo::detail::non_max_suppression(outputs, iou_thr,  //
