@@ -322,7 +322,7 @@ class DetPostProcessV5 : public BasePostProcess
         TIMER_START_DEBUG(DET_NMS_TIME_NAME);
 
         // 判断一下, 如果没有检测目标, 就直接返回, 不会进行 NMS
-        non_max_suppression(results, this->iou_thrs, this->agnostic);
+        this->non_max_suppression(results, this->iou_thrs, this->agnostic);
 
         // 记录 NMS 时间
         LOG_DEFAULT_DEBUG("non_max_suppression cost time: %s", TIMER_ELAPSED_STR_DEBUG(DET_NMS_TIME_NAME).c_str());
