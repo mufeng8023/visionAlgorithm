@@ -49,7 +49,7 @@ cd visionAlgorithm
 
 ## 文档索引
 
-本项目的文档按模块组织为两个主要章节, 涵盖推理核心组件与通用基础设施:
+本项目的文档按模块组织为三个主要章节, 涵盖推理核心组件、目标跟踪算法与通用基础设施:
 
 ### 🧩 核心模块 — detector
 
@@ -64,6 +64,21 @@ detector 模块是推理框架的核心, 包含以下组件:
 | **工具函数** | 结果可视化与配置/图像预处理工具        | [draw_result](detector/draw_result.md) / [utils](detector/utils.md)            |
 
 📄 完整索引请查看 [detector 模块首页](detector/index.md)。
+
+### 🎯 跟踪模块 — tracker
+
+tracker 模块提供多目标跟踪算法实现, 包含以下组件:
+
+| 类别           | 说明                                      | 链接                                                                                                                  |
+| -------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **核心调度**   | 跟踪运行时调度器, 封装 ByteTrack/DeepSORT | [TrackerRuntime](tracker/TrackerRuntime.md)                                                                           |
+| **卡尔曼滤波** | 泛型卡尔曼滤波基类, Box 与关键点平滑实现  | [BaseKalmanFilter](tracker/BaseKalmanFilter.md) / [BoxKalmanFilter](tracker/BoxKalmanFilter.md)                       |
+| **数据结构**   | 轨迹基类、检测目标、跟踪结果、配置等结构  | [BaseTrack](tracker/BaseTrack.md) / [TrackResult](tracker/TrackResult.md) / [TrackerConfig](tracker/TrackerConfig.md) |
+| **ByteTrack**  | 高低分检测框三轮 IoU 关联跟踪             | [ByteTracker](tracker/bytetrack/ByteTracker.md) / [matching](tracker/bytetrack/matching.md)                           |
+| **DeepSORT**   | 级联匹配 + IoU 二次匹配, 支持 ReID 特征   | [DeepSortTracker](tracker/deepsort/DeepSortTracker.md) / [NNMetric](tracker/deepsort/NNMetric.md)                     |
+| **工具函数**   | INI 配置解析、跟踪器工厂创建与版本信息    | [utils](tracker/utils.md) / [version](tracker/version.md)                                                             |
+
+📄 完整索引请查看 [tracker 模块首页](tracker/index.md)。
 
 ### 🛠 通用组件 — common
 
@@ -82,13 +97,15 @@ common 模块提供框架通用的基础设施组件:
 - 🎯 **多模型支持** — 兼容 YOLOv5/v8/v26 检测与姿态估计模型
 - 🧪 **调试友好** — 内置 TIMER_DEBUG 宏, 支持运行时性能分析
 - 📝 **完善日志** — 基于 C++17 的多线程安全日志系统, 支持多级日志
+- 🔄 **多目标跟踪** — 内置 ByteTrack 与 DeepSORT 算法, 支持卡尔曼滤波轨迹平滑
 
 ## 文档目录概览
 
-| 章节                                   | 说明                                             |
-| -------------------------------------- | ------------------------------------------------ |
-| [detector 模块文档](detector/index.md) | 核心推理模块: 调度、网络、后处理、数据结构、工具 |
-| [common 模块文档](common/index.md)     | 通用组件: 日志、文件系统、计时器                 |
+| 章节                                   | 说明                                                      |
+| -------------------------------------- | --------------------------------------------------------- |
+| [detector 模块文档](detector/index.md) | 核心推理模块: 调度、网络、后处理、数据结构、工具          |
+| [tracker 模块文档](tracker/index.md)   | 多目标跟踪模块: ByteTrack、DeepSORT、卡尔曼滤波、数据结构 |
+| [common 模块文档](common/index.md)     | 通用组件: 日志、文件系统、计时器                          |
 
 ## 贡献
 
