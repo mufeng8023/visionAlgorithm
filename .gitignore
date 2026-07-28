@@ -5,3 +5,5 @@ build/
 /**/*.so
 /**/*.o
 /**/*.a
+/**/*temp*/
+cspell.json
