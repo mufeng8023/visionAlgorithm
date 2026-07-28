@@ -24,6 +24,12 @@
 - 📖 **visionAlgorithm**
   - [首页](README.md)
 
+- 🛠 **common 通用组件**
+  - [📋 模块索引](common/index.md)
+  - [logging 日志系统](common/logging.md)
+  - [myFilesystem 文件系统工具](common/myFilesystem.md)
+  - [timer 计时器工具](common/timer.md)
+
 - 🧩 **detector 核心模块**
   - [📋 模块索引](detector/index.md)
   - [🚀 RunTime 运行时调度器](detector/RunTime.md)
@@ -47,11 +53,32 @@
     - [draw_result 结果可视化](detector/draw_result.md)
     - [utils 工具函数](detector/utils.md)
 
-- 🛠 **common 通用组件**
-  - [📋 模块索引](common/index.md)
-  - [logging 日志系统](common/logging.md)
-  - [myFilesystem 文件系统工具](common/myFilesystem.md)
-  - [timer 计时器工具](common/timer.md)
+- 🎯 **tracker 跟踪模块**
+  - [📋 模块索引](tracker/index.md)
+  - [TrackerRuntime 运行时调度器](tracker/TrackerRuntime.md)
+  - **卡尔曼滤波**
+    - [BaseKalmanFilter 基类](tracker/BaseKalmanFilter.md)
+    - [BoxKalmanFilter Box 跟踪](tracker/BoxKalmanFilter.md)
+    - [KeypointKalmanFilter 关键点平滑](tracker/KeypointKalmanFilter.md)
+  - **数据结构**
+    - [BaseTrack 轨迹基类](tracker/BaseTrack.md)
+    - [BoxObject 检测目标](tracker/BoxObject.md)
+    - [TrackResult 跟踪结果](tracker/TrackResult.md)
+    - [TrackHistory 轨迹历史](tracker/TrackHistory.md)
+    - [TrackState 轨迹状态](tracker/TrackState.md)
+    - [TrackerConfig 配置](tracker/TrackerConfig.md)
+  - **ByteTrack 实现**
+    - [ByteTracker 跟踪器](tracker/bytetrack/ByteTracker.md)
+    - [BytetrackTrack 轨迹](tracker/bytetrack/BytetrackTrack.md)
+    - [matching 匹配算法](tracker/bytetrack/matching.md)
+  - **DeepSORT 实现**
+    - [DeepSortTracker 跟踪器](tracker/deepsort/DeepSortTracker.md)
+    - [DeepSortTrack 轨迹](tracker/deepsort/DeepSortTrack.md)
+    - [NNMetric 特征度量](tracker/deepsort/NNMetric.md)
+    - [matching 匹配算法](tracker/deepsort/matching.md)
+  - **工具函数**
+    - [utils 工具函数](tracker/utils.md)
+    - [version 版本信息](tracker/version.md)
 
 <!-- ============================================================================
    设计说明：
