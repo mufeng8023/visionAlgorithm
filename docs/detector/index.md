@@ -22,6 +22,7 @@
 ## 后处理
 
 - [BasePostProcess 后处理基类](detector/BasePostProcess.md) - 后处理抽象接口与 NMS 实现
+- [DetPostProcessV4 YOLOv4 检测后处理](detector/DetPostProcessV4.md) - YOLOv4 anchor-base 检测解码
 - [DetPostProcessV5 YOLOv5 检测后处理](detector/DetPostProcessV5.md) - YOLOv5 anchor-base 检测解码
 - [DetPostProcessV8 YOLOv8 检测后处理](detector/DetPostProcessV8.md) - YOLOv8 anchor-free 检测解码
 - [DetPostProcess26 YOLOv26 检测后处理](detector/DetPostProcess26.md) - YOLOv26 端到端检测解码
@@ -40,3 +41,4 @@
 
 - [draw_result 结果可视化](detector/draw_result.md) - 检测框与姿态关键点绘制
 - [utils 工具函数](detector/utils.md) - 配置解析与图像预处理工具
+- [version 版本信息](detector/version.md) - 版本号与编译信息查询

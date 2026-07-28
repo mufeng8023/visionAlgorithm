@@ -60,6 +60,7 @@ RunTime(const std::string& config_path,
 1. 解析 INI 配置文件, 填充 `DetectionNetConfig` 结构体
 2. 根据 `ModelBench` 枚举创建对应的网络推理实例 (当前仅支持 `OpenCV`)
 3. 根据 `TaskType` 和 `ModelType` 创建对应的后处理实例:
+   - `detection` + `yolov4` -> `DetPostProcessV4`
    - `detection` + `yolov5` -> `DetPostProcessV5`
    - `detection` + `yolov3u/yolov5u/yolov6u/yolov8/yolov9/yolo11/yolo12` -> `DetPostProcessV8`
    - `detection` + `yolov10/yolo26` -> `DetPostProcess26`
