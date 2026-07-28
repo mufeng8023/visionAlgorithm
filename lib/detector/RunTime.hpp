@@ -11,6 +11,8 @@
 #ifndef __RUNTIME__H__
 #define __RUNTIME__H__
 
+#include <memory>
+
 #include "detector/DetPostProcess26.hpp"
 #include "detector/DetPostProcessV4.hpp"
 #include "detector/DetPostProcessV5.hpp"
@@ -83,10 +85,10 @@ class RunTime
    private:
     // 配置
     DetectionNetConfig config;
-    // 网络运行类, 使用智能指针, 使用多态, 可以方便的切换模型
-    std::shared_ptr<BaseNet> net;
-    // 后处理类, 使用智能指针, 使用多态, 可以方便的切换模型
-    std::shared_ptr<BasePostProcess> postProcess;
+    // 网络运行类, 使用独占指针, 使用多态, 可以方便的切换模型
+    std::unique_ptr<BaseNet> net;
+    // 后处理类, 使用独占指针, 使用多态, 可以方便的切换模型
+    std::unique_ptr<BasePostProcess> postProcess;
 
     // 输入的图像, resize 之后的图像
     // 初始化时先 resize 到对应个数, 后续不再更改, 提高内存复用率
@@ -117,7 +119,7 @@ class RunTime
         switch (net_bench)
         {
             case ModelBench::OpenCV:
-                this->net = std::make_shared<OpencvNet>(this->config);
+                this->net = std::make_unique<OpencvNet>(this->config);
                 if (!this->net->load_model(param, device))
                 {
                     LOG_DEFAULT_ERROR("Init OpenCVNet Failed! load model:%s failed!", param.onnx_path.c_str());
@@ -145,13 +147,13 @@ class RunTime
                 {
                     case ModelType::yolov4:
                         // 初始化 DetPostProcessV4
-                        this->postProcess = std::make_shared<DetPostProcessV4>(this->config);
+                        this->postProcess = std::make_unique<DetPostProcessV4>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcessV4 Success!");
                         break;  // case ModelType::yolov4
 
                     case ModelType::yolov5:
                         // 初始化 DetPostProcessV5
-                        this->postProcess = std::make_shared<DetPostProcessV5>(this->config);
+                        this->postProcess = std::make_unique<DetPostProcessV5>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
@@ -164,14 +166,14 @@ class RunTime
                     case ModelType::yolo11:
                     case ModelType::yolo12:
                         // 初始化 DetPostProcessV8
-                        this->postProcess = std::make_shared<DetPostProcessV8>(this->config);
+                        this->postProcess = std::make_unique<DetPostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcessV8 Success!");
                         break;  // case ModelType::yolov8
 
                     case ModelType::yolov10:
                     case ModelType::yolo26:
                         // 初始化 DetPostProcess26
-                        this->postProcess = std::make_shared<DetPostProcess26>(this->config);
+                        this->postProcess = std::make_unique<DetPostProcess26>(this->config);
                         LOG_DEFAULT_INFO("Init DetPostProcess26 Success!");
                         break;  // case ModelType::yolov26
 
@@ -192,7 +194,7 @@ class RunTime
                 {
                     case ModelType::yolov5:
                         // 初始化 PosePostProcessV5
-                        this->postProcess = std::make_shared<PosePostProcessV5>(this->config);
+                        this->postProcess = std::make_unique<PosePostProcessV5>(this->config);
                         LOG_DEFAULT_INFO("Init PosePostProcessV5 Success!");
                         break;  // case ModelType::yolov5
 
@@ -201,13 +203,13 @@ class RunTime
                     case ModelType::yolov8:
                     case ModelType::yolo11:
                         // 初始化 PosePostProcessV8
-                        this->postProcess = std::make_shared<PosePostProcessV8>(this->config);
+                        this->postProcess = std::make_unique<PosePostProcessV8>(this->config);
                         LOG_DEFAULT_INFO("Init PosePostProcessV8 Success!");
                         break;  // case ModelType::yolov8
 
                     case ModelType::yolo26:
                         // 初始化 PosePostProcess26
-                        this->postProcess = std::make_shared<PosePostProcess26>(this->config);
+                        this->postProcess = std::make_unique<PosePostProcess26>(this->config);
                         LOG_DEFAULT_INFO("Init PosePostProcess26 Success!");
                         break;  // case ModelType::yolov26
 
