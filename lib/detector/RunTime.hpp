@@ -292,7 +292,7 @@ class RunTime
     void operator()(const std::vector<cv::Mat>& images_bgr,  //
                     std::vector<std::vector<YoloObject>>& det_results)
     {
-        LOG_DEFAULT_INFO("RunTime Start!");
+        LOG_DEFAULT_DEBUG("RunTime Start!");
         // !记录所有时间
         TIMER_START(DET_RUNTIME_ALL_TIME_NAME);
         // !记录预处理时间
