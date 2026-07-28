@@ -47,7 +47,7 @@ class BaseNet
      * @description: 基类的析构函数
      * @return {*}
      */
-    ~BaseNet() = default;
+    virtual ~BaseNet() = default;
 
     /***
      * @description: 加载模型
