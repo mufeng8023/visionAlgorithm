@@ -19,14 +19,101 @@ find_package(OpenCV REQUIRED)
 # set(CMAKE_BUILD_TYPE Debug or Release)
 set(CMAKE_CXX_COMPILER /usr/bin/g++-11)
 
-# 添加编译选项:add_compile_options(-Wall -g)
-# -g:输出带调试信息的可执行文件
-# -O[n]:优化代码, 一般为-O2
-# -Wall:输出警告信息
-# -std=c++17:设置编译标准
-# -D:定义宏
-# add_compile_options(-Wall -g)
-add_compile_options(-Wall -g -std=c++17 -O2)
+# ---- DEBUG 模式 & 日志级别控制 ----
+# 通过 -DDEBUG=ON 开启 DEBUG 模式 (注入 TIMER_DEBUG 宏)
+option(DEBUG "Enable debug mode (injects TIMER_DEBUG macro)" OFF)
+
+# 编译时日志级别选项 (对应 logging.hpp 中的 LOG_COMPILE_LEVEL)
+# 可选值: 0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical
+# 用户可通过 -DLOG_LEVEL=N 指定
+set(LOG_LEVEL "" CACHE STRING "Compile-time log level (0=Trace, 1=Debug, 2=Info, 3=Warn, 4=Error, 5=Critical)")
+
+# 根据 DEBUG 开关和 LOG_LEVEL 设置最终编译日志级别
+# 检查用户是否显式指定了 LOG_LEVEL (避免 "0" 被 CMake 视为假值)
+if(DEFINED LOG_LEVEL AND NOT LOG_LEVEL STREQUAL "")
+    set(_LOG_LEVEL_USER_SPECIFIED TRUE)
+else()
+    set(_LOG_LEVEL_USER_SPECIFIED FALSE)
+endif()
+
+if(DEBUG)
+    # 开启 DEBUG 模式: 注入 TIMER_DEBUG 宏
+    add_compile_options(-DTIMER_DEBUG)
+    message(STATUS "[DEBUG] TIMER_DEBUG enabled")
+    if(_LOG_LEVEL_USER_SPECIFIED)
+        set(LOG_COMPILE_LEVEL ${LOG_LEVEL})
+        message(STATUS "[LOG] DEBUG mode: user-specified log level = ${LOG_LEVEL}")
+    else()
+        # 未指定日志级别, 默认 Debug(1)
+        set(LOG_COMPILE_LEVEL 1)
+        message(STATUS "[LOG] DEBUG mode: default log level = Debug(1)")
+    endif()
+else()
+    # 未开启 DEBUG 模式
+    if(_LOG_LEVEL_USER_SPECIFIED)
+        # 指定的日志级别不能小于 Info(2)
+        if(LOG_LEVEL LESS 2)
+            message(WARNING "[LOG] Non-DEBUG mode: specified log level ${LOG_LEVEL} is < Info(2), forcing to Info(2)")
+            set(LOG_COMPILE_LEVEL 2)
+        else()
+            set(LOG_COMPILE_LEVEL ${LOG_LEVEL})
+            message(STATUS "[LOG] Non-DEBUG mode: user-specified log level = ${LOG_LEVEL}")
+        endif()
+    else()
+        # 未指定日志级别, 默认 Info(2)
+        set(LOG_COMPILE_LEVEL 2)
+        message(STATUS "[LOG] Non-DEBUG mode: default log level = Info(2)")
+    endif()
+endif()
+
+# ---- 版本 & Git 信息注入 (用于 lib/detector/version.h) ----
+# 编译时间注入 (格式: YYYYMMDD_HHMMSS)
+string(TIMESTAMP DETECT_BUILD_TIME "%Y%m%d_%H%M%S")
+# 获取当前 git commit 完整哈希
+execute_process(
+    COMMAND git rev-parse HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE DETECT_GIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+# 获取当前 git 分支名
+execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE DETECT_GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET
+)
+# 若 git 获取失败则回退默认值
+if(NOT DETECT_GIT_HASH)
+    set(DETECT_GIT_HASH "unknown")
+endif()
+if(NOT DETECT_GIT_BRANCH)
+    set(DETECT_GIT_BRANCH "unknown")
+endif()
+
+message(STATUS "[BuildTime] DETECT_BUILD_TIME:     ${DETECT_BUILD_TIME}")
+message(STATUS "[GitHash]   DETECT_GIT_HASH:       ${DETECT_GIT_HASH}")
+message(STATUS "[GitBranch] DETECT_GIT_BRANCH:     ${DETECT_GIT_BRANCH}")
+
+# 将用户设置的日志级别通过 -D 宏传递给编译器
+add_compile_options(-Wall -g -std=c++17 -O2
+    -DLOG_COMPILE_LEVEL=${LOG_COMPILE_LEVEL}
+    -DDETECT_BUILD_TIME="${DETECT_BUILD_TIME}"
+    -DDETECT_GIT_HASH="${DETECT_GIT_HASH}"
+    -DDETECT_GIT_BRANCH="${DETECT_GIT_BRANCH}"
+    -DDETECT_PROJECT_NAME="${PROJECT_NAME}"
+)
+
+# 项目根路径宏定义, 可通过 cmake .. -DPROJECT_ROOT=[path] 指定
+# 若未指定, 则默认使用 CMAKE_SOURCE_DIR (即 CMakeLists.txt 所在目录)
+set(PROJECT_ROOT "" CACHE STRING "Project root path for runtime file access")
+if(PROJECT_ROOT)
+    add_compile_options(-DPROJECT_ROOT="${PROJECT_ROOT}")
+else()
+    add_compile_options(-DPROJECT_ROOT="${CMAKE_SOURCE_DIR}")
+endif()
 
 # 添加头文件搜索路径:include_directories(./include)
 # include_directories(include_PATH)
@@ -39,7 +126,7 @@ include_directories(${CMAKE_SOURCE_DIR}
 
 # 添加多个特定的库文件搜索路径:link_directories(LIB_PATH1 LIB_PATH2 ...)
 # link_directories(LIB_PATH)
-link_directories(${OPENCV_ROOT}/lib)
+link_directories(${OPENCV_ROOT}/lib/detector/*.h*)
 
 # find_package(OpenVINO COMPONENTS Runtime)
 
@@ -67,7 +154,7 @@ link_directories(${OPENCV_ROOT}/lib)
 # 遍历获取src中所有cpp文件:file(GLOB My_Source_Files src/*.cpp)
 # file(GLOB My_Source_Files src/*.cpp)
 # add_executable(yolo main.cpp VALUE_NAME)
-file(GLOB CPP_Files src/*.cpp lib/detector/src/*.cpp)
+file(GLOB CPP_Files src/*.cpp lib/detector/*.cpp)
 add_executable(${PROJECT_NAME}
     ${CPP_Files}
 )

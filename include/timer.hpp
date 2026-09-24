@@ -139,6 +139,19 @@ class TimerManager
     }
 
     /***
+     * @description: 销毁指定名称的计时器，释放内存
+     * @param name string& : 计时器名称
+     * @return {}
+     */
+    void remove(const std::string& name)
+    {
+        // 使用互斥锁保证线程安全
+        std::lock_guard<std::mutex> lock(this->_m_mutex);
+        // 删除指定名称的计时器
+        this->timers_map.erase(name);
+    }
+
+    /***
      * @description: 重置指定名称的计时器
      * @param &name {string} : 计时器名称
      * @return {}
@@ -191,50 +204,40 @@ class TimerManager
     std::mutex _m_mutex;
 };
 
-// =====================================================
-// 作用域自动计时器 (RAII模式)
-// =====================================================
-class ScopedTimer
-{
-   public:
-    /***
-     * @description: 显式构造函数: 创建作用域计时器并记录开始时间
-     * @param &name {string} : 计时器名称
-     * @return {}
-     */
-    explicit ScopedTimer(const std::string& name)
-        : name_(name),                                            // 初始化计时器名称
-          start_time_(std::chrono::high_resolution_clock::now())  // 初始化开始时间
-    {
-    }
+// NOTE: RELEASE 模式宏定义 任何时候均启用
+// 开始/重置一个持久计时器
+#define TIMER_START(name) TimerManager::instance().reset(name)
+// 获取格式化时间字符串 (不销毁)
+#define TIMER_ELAPSED_STR(name) TimerManager::instance().elapsed_str(name)
+// 获取毫秒数 (不销毁)
+#define TIMER_ELAPSED_MS(name) TimerManager::instance().elapsed_ms(name)
+// 手动手动销毁计时器，释放内存
+#define TIMER_REMOVE(name) TimerManager::instance().remove(name)
 
-    /***
-     * @description: 析构函数: 在对象离开作用域时自动计算并输出耗时
-     * @return {}
-     */
-    ~ScopedTimer()
-    {
-        // 获取结束时间点
-        std::chrono::high_resolution_clock::time_point end_time = std::chrono::high_resolution_clock::now();
-        // 计算时间间隔并转换为毫秒
-        std::chrono::milliseconds duration =
-            std::chrono::duration_cast<std::chrono::milliseconds>(end_time - this->start_time_);
-        // 输出计时结果到标准输出
-        std::cout << "[TIMER] " << this->name_ << " took " << duration.count() << " ms" << std::endl;
-    }
+// NOTE: DEBUG 模式宏定义 由 TIMER_DEBUG 宏控制开关
+#ifdef TIMER_DEBUG
+// 当启用了 TIMER_DEBUG：映射到对应的计时器行为
+// [Debug] 开始/重置一个持久计时器
+#define TIMER_START_DEBUG(name) TimerManager::instance().reset(name)
+// [Debug] 获取格式化时间字符串 (不销毁)
+#define TIMER_ELAPSED_STR_DEBUG(name) TimerManager::instance().elapsed_str(name)
+// [Debug] 获取毫秒数 (不销毁)
+#define TIMER_ELAPSED_MS_DEBUG(name) TimerManager::instance().elapsed_ms(name)
+// [Debug] 手动销毁计时器，释放内存
+#define TIMER_REMOVE_DEBUG(name) TimerManager::instance().remove(name)
 
-   private:
-    // 私有成员: 存储计时器名称
-    std::string name_;
-    // 私有成员: 存储开始时间点
-    std::chrono::high_resolution_clock::time_point start_time_;
-};
+#else
+// 当未启用 TIMER_DEBUG：全部变为空白，0 运行时开销
+// [Debug-关闭] 空操作
+#define TIMER_START_DEBUG(name) ((void)0)
+// [Debug-关闭] 返回空字符串，防止编译报错
+#define TIMER_ELAPSED_STR_DEBUG(name) (std::string(""))
+// [Debug-关闭] 返回 0，防止编译报错
+#define TIMER_ELAPSED_MS_DEBUG(name) (static_cast<std::int64_t>(0))
+// [Debug-关闭] 空操作
+#define TIMER_REMOVE_DEBUG(name) ((void)0)
 
-// =====================================================
-// 宏定义: 作用域自动计时器
-// =====================================================
-// 宏定义: 创建一个作用域自动计时器, 使用行号确保变量名唯一
-#define TIME_SCOPE(name) ScopedTimer scoped_timer_##__LINE__(name)
+#endif  // TIMER_DEBUG 宏定义 结束
 
 // 结束头文件保护
 #endif  // __TIMER__H__
