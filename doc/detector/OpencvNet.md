@@ -35,8 +35,9 @@ private:
     uint32 na;                  // 每个位置 anchor 数
     uint32 no;                  // 每个位置输出信息数
     uint32 nl;                  // 输出层数
+    std::vector<std::string> out_layer_names; // ONNX 模型输出名称
     std::vector<uint32> net_out_h;  // 各输出层高度
-    std::vector<uint32> output_w;   // 各输出层宽度
+    std::vector<uint32> net_out_w;  // 各输出层宽度
     std::vector<uint32> output_len; // 各输出层数据元素总数
     cv::Mat inputBatch;         // 预处理后的输入 Blob
 };

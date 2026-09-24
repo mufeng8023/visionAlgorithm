@@ -41,8 +41,9 @@ public:
 
 ```cpp
 static inline void nms_ops(ObjectBuffer& output,
-                           float32 iou_thr = 0.45,
-                           bool agnostic = false);
+                           float32 iou_thr,
+                           bool agnostic,
+                           std::vector<size_t>& indices_buffer);
 ```
 
 对单张图片的检测结果执行 NMS:
@@ -56,7 +57,8 @@ static inline void nms_ops(ObjectBuffer& output,
 
 ```cpp
 static inline void end2end_post(ObjectBuffer& output,
-                                uint32 max_det = 300);
+                                size_t max_det,
+                                std::vector<size_t>& indices_buffer);
 ```
 
 用于 YOLOv10 / YOLOv26 等端到端模型的输出后处理:
@@ -72,9 +74,9 @@ static inline void end2end_post(ObjectBuffer& output,
 
 ```cpp
 void non_max_suppression(std::vector<ObjectBuffer>& outputs,
-                         float32 iou_thr = 0.45,
-                         bool agnostic = false,
-                         uint32 max_det = 300,
+                         float32 iou_thr,
+                         bool agnostic,
+                         size_t max_det,
                          bool end2end = false);
 ```
 
@@ -96,6 +98,7 @@ void non_max_suppression(std::vector<ObjectBuffer>& outputs,
 
 | 类名                                      | 说明                              |
 | ----------------------------------------- | --------------------------------- |
+| [DetPostProcessV4](DetPostProcessV4.md)   | YOLOv4 anchor-base 检测后处理     |
 | [DetPostProcessV5](DetPostProcessV5.md)   | YOLOv5 anchor-base 检测后处理     |
 | [DetPostProcessV8](DetPostProcessV8.md)   | YOLOv8 anchor-free 检测后处理     |
 | [DetPostProcess26](DetPostProcess26.md)   | YOLOv26 端到端检测后处理          |
